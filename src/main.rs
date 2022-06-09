@@ -1,4 +1,8 @@
-pub mod instruction;
-pub mod vm;
+use std::process::ExitCode;
 
-fn main() {}
+mod instruction;
+mod vm;
+
+fn main() -> ExitCode {
+    return ExitCode::SUCCESS;
+}
