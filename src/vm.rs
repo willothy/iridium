@@ -87,6 +87,33 @@ impl VM {
                 self.next_8_bits();
                 false // Continue
             },
+            NE => {
+                let register1 = self.registers[self.next_8_bits() as usize];
+                let register2 = self.registers[self.next_8_bits() as usize];
+                self.equal_flag = register1 != register2;
+                self.next_8_bits();
+                false // Continue
+            },
+            JEQ => {
+                if self.equal_flag {
+                    let reg = self.next_8_bits() as usize;
+                    let target = self.registers[reg];
+                    self.pc = target as usize;
+                } else {
+                    self.next_16_bits();
+                }
+                false // Continue
+            },
+            JNE => {
+                if self.equal_flag == false {
+                    let reg = self.next_8_bits() as usize;
+                    let target = self.registers[reg];
+                    self.pc = target as usize;
+                } else {
+                    self.next_16_bits();
+                }
+                false // Continue
+            },
             HLT => {
                 println!("HLT encountered");
                 true // Done
@@ -134,6 +161,7 @@ impl VM {
         self.registers = [0; 32];
         self.remainder = 0;
         self.program = vec![];
+        self.equal_flag = false;
     }
 }
 
@@ -288,5 +316,25 @@ mod tests {
         test_vm.program.extend(vec![EQ as u8, 0, 1, 0]);
         test_vm.run();
         assert_eq!(test_vm.equal_flag, false);
+    }
+
+    #[test]
+    fn test_jeq() {
+        let mut test_vm = VM::new();
+        test_vm.registers[0] = 7;
+        test_vm.equal_flag = true;
+        test_vm.program = vec![JEQ as u8, 0, 0];
+        test_vm.run_once();
+        assert_eq!(test_vm.pc, 7);
+    }
+
+    #[test]
+    fn test_jne() {
+        let mut test_vm = VM::new();
+        test_vm.registers[0] = 7;
+        test_vm.equal_flag = false;
+        test_vm.program = vec![JNE as u8, 0, 0, 0];
+        test_vm.run_once();
+        assert_eq!(test_vm.pc, 7);
     }
 }
