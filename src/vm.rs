@@ -72,7 +72,7 @@ impl VM {
         &self.registers.registers
     }
 
-    pub fn add_command(&mut self, command: Vec<u8>) {
+    pub fn add_program(&mut self, command: Vec<u8>) {
         self.program.extend(command);
     }
 
@@ -84,6 +84,11 @@ impl VM {
                 Err(e) => eprintln!("Error: {}", e),
             }
         }
+    }
+
+    pub fn run_once(&mut self) -> Result<(), String> {
+        self.execute_instruction()?;
+        Ok(())
     }
 
     fn execute_instruction(&mut self) -> Result<bool, String> {
@@ -188,12 +193,6 @@ impl VM {
 
     fn conv_u8s_u16(bytes: &[u8]) -> u16 {
         ((bytes[0] as u16) << 8) | (bytes[1] as u16)
-    }
-
-    // Test helpers
-    pub fn run_once(&mut self) -> Result<(), String> {
-        self.execute_instruction()?;
-        Ok(())
     }
 }
 

@@ -1,17 +1,11 @@
-use std::{
-    io::{self, Write},
-    num::ParseIntError,
-};
+use std::io::{self, Write};
 
-use crate::{
-    instruction::{Instruction, OpCode, Tou8Vec},
-    vm::VM,
-};
+use crate::vm::VM;
 
 struct ShouldExit;
 
 pub struct REPL {
-    command_buffer: Vec<Instruction>,
+    command_buffer: Vec<String>,
     vm: VM,
 }
 
@@ -38,7 +32,7 @@ impl REPL {
                 buffer.clear();
                 continue;
             }
-            let mut split = buffer.split_whitespace();
+            /*let mut split = buffer.split_whitespace();
             let opcode_str = split.next().ok_or("No instruction name")?.trim().to_owned();
             let args = split.collect::<Vec<&str>>();
 
@@ -50,25 +44,16 @@ impl REPL {
                 continue;
             }
 
-            let instruction = Instruction::new(opcode, self.parse_hex(args)?);
+            let instruction = Instruction::new(opcode, self.parse_hex(args)?);*/
+            let program = crate::assembler::parser::program(&buffer)?.1;
 
-            self.vm.add_command(instruction.to_u8_vec());
-            self.command_buffer.push(instruction);
+            self.vm.add_program(program.to_bytes());
+            self.command_buffer.push(buffer.clone());
 
-            if let Err(err) = self.vm.run_once() {
-                println!("{}", err);
-            }
+            self.vm.run();
 
             buffer.clear();
         }
-    }
-
-    fn parse_hex(&mut self, split: Vec<&str>) -> Result<Vec<u8>, ParseIntError> {
-        let mut results: Vec<u8> = vec![];
-        for hex_string in split {
-            results.push(u8::from_str_radix(&hex_string, 16)?);
-        }
-        Ok(results)
     }
 
     fn execute_command(&mut self, cmd: &str) -> Result<(), ShouldExit> {
@@ -85,8 +70,8 @@ impl REPL {
                 println!("Program:");
                 let mut buffer = String::new();
                 for instruction in self.vm.read_program() {
-                    buffer.push_str(&format!("{:02} ", instruction));
-                    if buffer.len() >= 12 {
+                    buffer.push_str(&format!("{:04} ", instruction));
+                    if buffer.len() >= 16 {
                         println!("{}", buffer);
                         buffer.clear();
                     }
