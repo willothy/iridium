@@ -101,7 +101,7 @@ impl VM {
             LOAD => {
                 self.registers.set(
                     operands[0] as usize,
-                    (Self::conv_u8s_u16(&[operands[1], operands[2]]) as u32) as i32,
+                    Self::conv_u8s_i16(&[operands[1], operands[2]]) as i32,
                 )?;
             }
             JMP => {
@@ -191,8 +191,8 @@ impl VM {
         opcode
     }
 
-    fn conv_u8s_u16(bytes: &[u8]) -> u16 {
-        ((bytes[0] as u16) << 8) | (bytes[1] as u16)
+    fn conv_u8s_i16(bytes: &[u8]) -> i16 {
+        ((bytes[0] as i16) << 8) | (bytes[1] as i16)
     }
 }
 

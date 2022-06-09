@@ -59,10 +59,9 @@ impl std::fmt::Display for OpCode {
     }
 }
 
-impl From<String> for OpCode {
-    fn from(v: String) -> Self {
-        let lowercased_opcode = v.to_lowercase();
-        match lowercased_opcode.as_str() {
+impl From<&str> for OpCode {
+    fn from(op_str: &str) -> Self {
+        match op_str {
             "load" => OpCode::LOAD,
             "add" => OpCode::ADD,
             "sub" => OpCode::SUB,

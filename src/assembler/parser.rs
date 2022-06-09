@@ -14,7 +14,7 @@ use nom::{
 pub enum Token {
     Op { code: OpCode },
     Register { id: u8 },
-    IntegerOperand { value: u16 },
+    IntegerOperand { value: u16, sign_bit: bool },
     //Number { value: u16 },
 }
 
@@ -53,10 +53,14 @@ impl AssemblerInstruction {
             Token::Register { id } => {
                 results.push(*id);
             }
-            Token::IntegerOperand { value } => {
-                let converted = *value as u16;
-                let byte1 = converted;
-                let byte2 = converted >> 8;
+            Token::IntegerOperand { value, sign_bit } => {
+                let converted = *value as i16;
+                let mut byte1 = converted;
+                let mut byte2 = converted >> 8;
+                if *sign_bit {
+                    byte2 = !byte2;
+                    byte1 = (!byte1) + 1;
+                }
                 results.push(byte2 as u8);
                 results.push(byte1 as u8);
             }
@@ -87,7 +91,7 @@ pub fn parse_program(s: &str) -> Result<Program, nom::Err<()>> {
 }
 
 fn program(s: &str) -> IResult<&str, Program, ()> {
-    match many1(instruction_one)(s) {
+    match many1(alt((instruction_one, instruction_two, instruction_three)))(s) {
         Ok((rem, instructions)) => Ok((rem, Program { instructions })),
         Err(e) => Err(e),
     }
@@ -98,7 +102,7 @@ fn opcode(s: &str) -> IResult<&str, Token, ()> {
         Ok((rem, opcode)) => Ok((
             rem,
             Token::Op {
-                code: match OpCode::from(opcode.to_lowercase()) {
+                code: match OpCode::from(&opcode.to_lowercase()[..]) {
                     OpCode::IGL => return Err(nom::Err::Error(())),
                     opcode => opcode,
                 },
@@ -120,38 +124,36 @@ fn register(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-fn integer_operand(s: &str) -> IResult<&str, Token, ()> {
-    if s.starts_with("0x") {
-        match map_res(
-            preceded(
+fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
+    let mut sign_bit = false;
+    if s.starts_with("-") {
+        sign_bit = true;
+        s = &s[1..];
+    }
+    match map_res(
+        alt((
+            tuple((
                 alt((tag("0x"), tag("0X"))),
                 recognize(many1(terminated(
                     one_of("0123456789abcdefABCDEF"),
                     many0(char('_')),
-                ))),
-            ),
-            |out: &str| u16::from_str_radix(&str::replace(&out, "_", ""), 16),
-        )(s)
-        {
-            Ok((rem, value)) => Ok((rem, Token::IntegerOperand { value })),
-            Err(e) => Err(e),
-        }
-    } else {
-        match map_res(
+                )))
+            )),
             tuple((
-                char('#'),
+                tag("#"),
                 recognize(many1(terminated(one_of("0123456789"), many0(char('_'))))),
             )),
-            |e| u16::from_str_radix(&str::replace(e.1, "_", ""), 10),
-        )(s)
-        {
-            Ok((rem, value)) => Ok((rem, Token::IntegerOperand { value })),
-            Err(e) => Err(e),
-        }
+        )),
+        |(tag, out)| u16::from_str_radix(&str::replace(out, "_", ""), if tag.to_lowercase() == "0x" { 16 } else { 10 }),
+    )(s)
+    {
+        Ok((rem, value)) => Ok((rem, Token::IntegerOperand { value, sign_bit })),
+        Err(e) => Err(e),
     }
 }
 
-// Opcode_load register integer_operand
+
+/// OP $reg #value
 fn instruction_one(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(
         tuple((opcode, space1, register, space1, integer_operand)),
@@ -161,6 +163,36 @@ fn instruction_one(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
         Ok((rem, (opcode, _, register, _, integer_operand))) => Ok((
             rem,
             AssemblerInstruction::new(opcode, [Some(register), Some(integer_operand), None]),
+        )),
+        Err(e) => Err(e),
+    }
+}
+
+/// OP
+fn instruction_two(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+    match terminated(
+        opcode,
+        newline,
+    )(s)
+    {
+        Ok((rem, opcode)) => Ok((
+            rem,
+            AssemblerInstruction::new(opcode, [None, None, None]),
+        )),
+        Err(e) => Err(e),
+    }
+}
+
+/// OP $reg $reg $reg
+fn instruction_three(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+    match terminated(
+        tuple((opcode, space1, register, space1, register, space1, register)),
+        newline,
+    )(s)
+    {
+        Ok((rem, (opcode, _, r0, _, r1, _, r2))) => Ok((
+            rem,
+            AssemblerInstruction::new(opcode, [Some(r0), Some(r1), Some(r2)]),
         )),
         Err(e) => Err(e),
     }
@@ -191,7 +223,7 @@ mod tests {
         assert_eq!(result.is_ok(), true);
         let (rest, tok) = result.unwrap();
         assert_eq!(rest, " ");
-        assert_eq!(tok, Token::IntegerOperand { value: 10 });
+        assert_eq!(tok, Token::IntegerOperand { value: 10, sign_bit: false });
 
         // Test an invalid one (missing the #)
         let result = integer_operand("10 ");
@@ -223,7 +255,7 @@ mod tests {
                     Token::Op { code: OpCode::LOAD },
                     [
                         Some(Token::Register { id: 0 }),
-                        Some(Token::IntegerOperand { value: 100 }),
+                        Some(Token::IntegerOperand { value: 100, sign_bit: false }),
                         None
                     ]
                 )
@@ -239,5 +271,28 @@ mod tests {
         let bytecode = program.to_bytes();
         assert_eq!(bytecode.len(), 4);
         println!("{:?}", bytecode);
+    }
+
+    #[test]
+    fn test_str_to_opcode() {
+        let opcode = OpCode::from("load");
+        assert_eq!(opcode, OpCode::LOAD);
+        let opcode = OpCode::from("illegal");
+        assert_eq!(opcode, OpCode::IGL);
+    }
+
+    #[test]
+    fn test_parse_instruction_form_two() {
+        let result = instruction_two("hlt\n");
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                AssemblerInstruction {
+                    opcode: Token::Op { code: OpCode::HLT },
+                    operands: [None, None, None]
+                }
+            ))
+        );
     }
 }
