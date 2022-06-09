@@ -77,7 +77,7 @@ impl From<&str> for OpCode {
             "gt" => OpCode::GT,
             "lte" => OpCode::LTE,
             "lt" => OpCode::LT,
-            "jmpe" => OpCode::JEQ,
+            "jeq" => OpCode::JEQ,
             "nop" => OpCode::NOP,
             "aloc" => OpCode::ALOC,
             "inc" => OpCode::INC,

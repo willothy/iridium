@@ -1,6 +1,6 @@
-use std::io::{self, Write};
+use std::{io::{self, Write, Read}, path::Path, fs::File};
 
-use crate::{vm::VM, assembler::parser::parse_program};
+use crate::{assembler::parser::parse_program, vm::VM};
 
 struct ShouldExit;
 
@@ -22,6 +22,9 @@ impl REPL {
         let mut output = io::stdout();
         let input = io::stdin();
         loop {
+            if *self.vm.read_pc() < self.vm.program_len() {
+                self.vm.run();
+            }
             print!(">>> ");
             output.flush().unwrap_or_else(|_| println!(""));
             buffer.clear();
@@ -33,7 +36,7 @@ impl REPL {
                 };
                 continue;
             }
-            
+
             let program = parse_program(&buffer)?;
 
             self.vm.add_program(program.to_bytes());
@@ -48,6 +51,28 @@ impl REPL {
             "quit" => {
                 println!("Bye!");
                 return Err(ShouldExit);
+            }
+            "load-file" => {
+                print!("Please enter the path to the file you wish to load: ");
+                std::io::stdout().flush().expect("Unable to flush stdout");
+                let mut tmp = String::new();
+                std::io::stdin().read_line(&mut tmp).expect("Unable to read line from user");
+                let tmp = tmp.trim();
+                let filename = Path::new(&tmp);
+                let mut f = File::open(Path::new(&filename)).expect("File not found");
+                let mut contents = String::new();
+                f.read_to_string(&mut contents).expect("There was an error reading from the file");
+                let program = match parse_program(&contents) {
+                    Ok(program) => {
+                        program
+                    },
+                    Err(e) => {
+                        println!("Unable to parse input: {:?}", e);
+                        return Ok(())
+                    }
+                };
+                self.vm.add_program(program.to_bytes());
+                Ok(())
             }
             "state" => {
                 println!("{}", self.vm);

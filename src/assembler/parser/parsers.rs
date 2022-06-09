@@ -1,4 +1,4 @@
-use crate::instruction::OpCode;
+use crate::opcode::OpCode;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -10,16 +10,23 @@ use nom::{
     IResult,
 };
 
-use super::{Program, formats::{instruction_one, instruction_two, instruction_three}, Token};
+use super::{formats::*, Program, Token};
 
-pub(in super) fn program(s: &str) -> IResult<&str, Program, ()> {
-    match many1(alt((instruction_one, instruction_two, instruction_three)))(s) {
+pub(in crate::assembler) fn program(s: &str) -> IResult<&str, Program, ()> {
+    match many1(alt((op, op_reg, op_reg_reg, op_reg_reg_reg, op_reg_val, instruction_combined)))(s) {
         Ok((rem, instructions)) => Ok((rem, Program { instructions })),
         Err(e) => Err(e),
     }
 }
 
-pub(in super) fn opcode(s: &str) -> IResult<&str, Token, ()> {
+pub(in crate::assembler) fn operand(s: &str) -> IResult<&str, Token, ()> {
+    match alt((register, integer_operand))(s) {
+        Ok((rem, token)) => Ok((rem, token)),
+        Err(e) => Err(e),
+    }
+}
+
+pub(in crate::assembler) fn opcode(s: &str) -> IResult<&str, Token, ()> {
     match alpha1(s) {
         Ok((rem, opcode)) => Ok((
             rem,
@@ -34,7 +41,7 @@ pub(in super) fn opcode(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-pub(in super) fn register(s: &str) -> IResult<&str, Token, ()> {
+pub(in crate::assembler) fn register(s: &str) -> IResult<&str, Token, ()> {
     match tuple((char('$'), digit1))(s) {
         Ok((rem, (_, number))) => Ok((
             rem,
@@ -46,7 +53,7 @@ pub(in super) fn register(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-pub(in super) fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
+pub(in crate::assembler) fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
     let mut sign_bit = false;
     if s.starts_with("-") {
         sign_bit = true;
@@ -59,14 +66,19 @@ pub(in super) fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
                 recognize(many1(terminated(
                     one_of("0123456789abcdefABCDEF"),
                     many0(char('_')),
-                )))
+                ))),
             )),
             tuple((
                 tag("#"),
                 recognize(many1(terminated(one_of("0123456789"), many0(char('_'))))),
             )),
         )),
-        |(tag, out)| u16::from_str_radix(&str::replace(out, "_", ""), if tag.to_lowercase() == "0x" { 16 } else { 10 }),
+        |(tag, out)| {
+            u16::from_str_radix(
+                &str::replace(out, "_", ""),
+                if tag.to_lowercase() == "0x" { 16 } else { 10 },
+            )
+        },
     )(s)
     {
         Ok((rem, value)) => Ok((rem, Token::IntegerOperand { value, sign_bit })),
@@ -77,11 +89,12 @@ pub(in super) fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
 
 
 
+
 /// Tests for parser
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instruction::OpCode;
+    use crate::opcode::OpCode;
 
     #[test]
     fn test_parse_register() {
@@ -100,7 +113,13 @@ mod tests {
         assert_eq!(result.is_ok(), true);
         let (rest, tok) = result.unwrap();
         assert_eq!(rest, " ");
-        assert_eq!(tok, Token::IntegerOperand { value: 10, sign_bit: false });
+        assert_eq!(
+            tok,
+            Token::IntegerOperand {
+                value: 10,
+                sign_bit: false
+            }
+        );
 
         // Test an invalid one (missing the #)
         let result = integer_operand("10 ");
@@ -138,5 +157,4 @@ mod tests {
         let opcode = OpCode::from("illegal");
         assert_eq!(opcode, OpCode::IGL);
     }
-
 }

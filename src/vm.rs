@@ -1,12 +1,13 @@
 use std::ops::{Index, IndexMut};
 
-use crate::instruction::{Instruction, OpCode, OpCode::*};
+use crate::opcode::{Instruction, OpCode, OpCode::*};
 
 #[derive(Debug)]
 pub struct VM {
     registers: RegisterSet,
     pc: usize,
     program: Vec<u8>,
+    heap: Vec<u8>,
     remainder: u32,
     equal_flag: bool,
 }
@@ -37,6 +38,24 @@ impl RegisterSet {
             Err(format!("Register index {} out of bounds", index))
         }
     }
+
+    pub fn inc(&mut self, index: usize) -> Result<(), String> {
+        if index < self.registers.len() {
+            self.registers[index] += 1;
+            Ok(())
+        } else {
+            Err(format!("Register index {} out of bounds", index))
+        }
+    }
+
+    pub fn dec(&mut self, index: usize) -> Result<(), String> {
+        if index < self.registers.len() {
+            self.registers[index] -= 1;
+            Ok(())
+        } else {
+            Err(format!("Register index {} out of bounds", index))
+        }
+    }
 }
 
 impl Index<usize> for RegisterSet {
@@ -58,10 +77,19 @@ impl VM {
         Self {
             registers: RegisterSet::new(),
             program: vec![],
+            heap: vec![],
             pc: 0,
             remainder: 0,
             equal_flag: false,
         }
+    }
+
+    pub fn read_pc(&self) -> &usize {
+        &self.pc
+    }
+
+    pub fn program_len(&self) -> usize {
+        self.program.len()
     }
 
     pub fn read_program(&self) -> &Vec<u8> {
@@ -98,6 +126,12 @@ impl VM {
                     operands[0] as usize,
                     Self::conv_u8s_i16(&[operands[1], operands[2]]) as i32,
                 )?;
+            }
+            INC => {
+                self.registers.inc(operands[0] as usize)?;
+            }
+            DEC => {
+                self.registers.dec(operands[0] as usize)?;
             }
             JMP => {
                 self.pc = *self.registers.get(operands[0] as usize)? as usize;
@@ -154,6 +188,11 @@ impl VM {
                     self.pc = *self.registers.get(operands[0] as usize)? as usize;
                 }
             }
+            ALOC => {
+                let bytes = *self.registers.get(operands[0] as usize)?;
+                let new_end = self.heap.len() as i32 + bytes;
+                self.heap.resize(new_end as usize, 0);
+            }
             HLT => {
                 println!("HLT encountered");
                 return Ok(true); // Done
@@ -193,24 +232,20 @@ impl VM {
 
 impl std::fmt::Display for VM {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut s = String::new();
+        let mut registers = String::from("[ ");
         for (i, reg) in self.read_registers().iter().enumerate() {
-            s.push_str(&format!("{}", reg));
-            if i < 32 {
-                s.push_str(", ");
+            registers.push_str(&format!("{}", reg));
+            if i < 31 {
+                registers.push_str(", ");
             }
         }
-        for i in 0..self.registers.registers.len() {
-            write!(f, "{}", self.registers[i])?;
-            if i < 32 {
-                write!(f, ", ")?;
-            }
-        }
-        write!(f, " ]\n")?;
+        registers.push_str(" ]");
+        write!(f, "Registers: {}\n", registers)?;
+        write!(f, "Heap (len: {}): {:?}\n", self.heap.len(), self.heap)?;
         write!(f, "PC: {}\n", self.pc)?;
         write!(f, "Remainder: {}\n", self.remainder)?;
         write!(f, "Equal flag: {}\n", self.equal_flag)?;
-        write!(f, "Program: {}\n", s)?;
+        write!(f, "Program: {:?}\n", self.read_program())?;
         Ok(())
     }
 }
@@ -452,6 +487,15 @@ mod tests {
         test_vm.program = vec![JNE as u8, 0, 0, 0];
         test_vm.run_once()?;
         assert_eq!(test_vm.pc, 7);
+        Ok(())
+    }
+
+    #[test]
+    fn test_aloc() -> Result<(), Box<dyn std::error::Error>> {
+        let mut test_vm = VM::new();
+        test_vm.registers[0] = 1024;
+        test_vm.program = vec![ALOC as u8, 0, 0, 0];
+        test_vm.run_once()?;
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 mod assembler;
-mod instruction;
+mod opcode;
 mod repl;
 mod vm;
 
