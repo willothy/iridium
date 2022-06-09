@@ -86,11 +86,6 @@ impl VM {
         }
     }
 
-    pub fn run_once(&mut self) -> Result<(), String> {
-        self.execute_instruction()?;
-        Ok(())
-    }
-
     fn execute_instruction(&mut self) -> Result<bool, String> {
         if self.pc >= self.program.len() {
             return Ok(true);
@@ -227,10 +222,11 @@ mod tests {
 
     trait VMTestHelpers {
         fn with_program(self, program: Vec<u8>) -> Self;
-        fn run_for(&mut self, n: usize);
+        fn run_for(&mut self, n: usize) -> Result<(), Box<dyn std::error::Error>>;
         fn reset(&mut self);
         fn next_8_bits(&mut self) -> u8;
         fn next_16_bits(&mut self) -> u16;
+        fn run_once(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     }
 
     impl VMTestHelpers for VM {
@@ -239,10 +235,11 @@ mod tests {
             self
         }
 
-        fn run_for(&mut self, n: usize) {
+        fn run_for(&mut self, n: usize) -> Result<(), Box<dyn std::error::Error>> {
             for _ in 0..n {
-                self.run_once();
+                self.run_once()?;
             }
+            Ok(())
         }
 
         fn reset(&mut self) {
@@ -266,6 +263,11 @@ mod tests {
             self.pc += 2;
             result
         }
+
+        fn run_once(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+            self.execute_instruction()?;
+            Ok(())
+        }
     }
 
     fn expand(num: u16) -> [u8; 2] {
@@ -278,37 +280,41 @@ mod tests {
     }
 
     #[test]
-    fn test_create_vm() {
+    fn test_create_vm() -> Result<(), Box<dyn std::error::Error>> {
         let test_vm = VM::new();
-        assert_eq!(test_vm.registers[0], 0)
+        assert_eq!(test_vm.registers[0], 0);
+        Ok(())
     }
 
     #[test]
-    fn test_hlt() {
+    fn test_hlt() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new().with_program(vec![HLT as u8, 0, 0, 0]);
         test_vm.run();
         assert_eq!(test_vm.pc, 4);
+        Ok(())
     }
 
     #[test]
-    fn test_igl() {
+    fn test_igl() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new().with_program(vec![IGL as u8, 0, 0, 0]);
         test_vm.run();
         assert_eq!(test_vm.pc, 4);
+        Ok(())
     }
 
     #[test]
-    fn test_load() {
+    fn test_load() -> Result<(), Box<dyn std::error::Error>> {
         let mut program: Vec<u8> = vec![LOAD as u8, 0];
         program.extend(expand(500));
 
         let mut test_vm = VM::new().with_program(program);
-        test_vm.run_once();
+        test_vm.run_once()?;
         assert_eq!(test_vm.registers[0], 500);
+        Ok(())
     }
 
     #[test]
-    fn test_add() {
+    fn test_add() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(10));
         create_load_unchecked(&mut test_vm, 1, expand(15));
@@ -316,10 +322,11 @@ mod tests {
         test_vm.program.extend(vec![ADD as u8, 0, 1, 2]);
         test_vm.run();
         assert_eq!(test_vm.registers[2], 25);
+        Ok(())
     }
 
     #[test]
-    fn test_sub() {
+    fn test_sub() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(10));
         create_load_unchecked(&mut test_vm, 1, expand(15));
@@ -327,10 +334,11 @@ mod tests {
         test_vm.program.extend(vec![SUB as u8, 1, 0, 2]);
         test_vm.run();
         assert_eq!(test_vm.registers[2], 5);
+        Ok(())
     }
 
     #[test]
-    fn test_mul() {
+    fn test_mul() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(2));
         create_load_unchecked(&mut test_vm, 1, expand(15));
@@ -338,10 +346,11 @@ mod tests {
         test_vm.program.extend(vec![MUL as u8, 0, 1, 2]);
         test_vm.run();
         assert_eq!(test_vm.registers[2], 30);
+        Ok(())
     }
 
     #[test]
-    fn test_div() {
+    fn test_div() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(30));
         create_load_unchecked(&mut test_vm, 1, expand(15));
@@ -350,10 +359,11 @@ mod tests {
 
         test_vm.run();
         assert_eq!(test_vm.registers[2], 2);
+        Ok(())
     }
 
     #[test]
-    fn test_div_remainder() {
+    fn test_div_remainder() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(6));
         create_load_unchecked(&mut test_vm, 1, expand(4));
@@ -362,78 +372,86 @@ mod tests {
 
         test_vm.run();
         assert_eq!(test_vm.remainder, 2);
+        Ok(())
     }
 
     #[test]
-    fn test_jmp() {
+    fn test_jmp() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 1, [0, 0]); // load register 1 with 0
         test_vm.program.extend(vec![JMP as u8, 1, 0, 0]); // Jump to the location in register 1 (the beginning of the program, infinite loop)
-        test_vm.run_for(2); // Execute the load and jump, don't allow infinite loop
+        test_vm.run_for(2)?; // Execute the load and jump, don't allow infinite loop
         assert_eq!(test_vm.pc, 0);
+        Ok(())
     }
 
     #[test]
-    fn test_jmpf() {
+    fn test_jmpf() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(4)); // Load 8 into register 0
         test_vm.program.extend(vec![JMPF as u8, 0, 0, 0]); // Jump 8 bytes forwards
         create_load_unchecked(&mut test_vm, 0, expand(15)); // Load 15 into register 0 (should be skipped)
 
-        test_vm.run_for(3);
+        test_vm.run_for(3)?;
         assert_eq!(test_vm.pc, 12);
         assert_eq!(test_vm.registers[0], 4);
+        Ok(())
     }
 
     #[test]
-    fn test_jmpb() {
+    fn test_jmpb() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         test_vm.pc = 4; // skip first load
         create_load_unchecked(&mut test_vm, 0, expand(0)); // Load 0 into register 0
         create_load_unchecked(&mut test_vm, 0, expand(12)); // Load 12 into register 0
         test_vm.program.extend(vec![JMPB as u8, 0, 0, 0]); // Jump 8 bytes back (to first load)
 
-        test_vm.run_for(3);
+        test_vm.run_for(3)?;
         assert_eq!(test_vm.registers[0], 0); // Ensure first load executed after jump
+        Ok(())
     }
 
     #[test]
-    fn test_eq_true() {
+    fn test_eq_true() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(10));
         create_load_unchecked(&mut test_vm, 1, expand(10));
         test_vm.program.extend(vec![EQ as u8, 0, 1, 0]);
-        test_vm.run_for(3);
+        test_vm.run_for(3)?;
         assert_eq!(test_vm.equal_flag, true);
+        Ok(())
     }
 
     #[test]
-    fn test_eq_false() {
+    fn test_eq_false() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, expand(20));
         create_load_unchecked(&mut test_vm, 1, expand(10));
         test_vm.program.extend(vec![EQ as u8, 0, 1, 0]);
         test_vm.run();
         assert_eq!(test_vm.equal_flag, false);
+        Ok(())
     }
 
     #[test]
-    fn test_jeq() {
+    fn test_jeq() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         test_vm.registers[0] = 7;
         test_vm.equal_flag = true;
         test_vm.program = vec![JEQ as u8, 0, 0, 0];
-        test_vm.run_once();
+        test_vm.run_once()?;
         assert_eq!(test_vm.pc, 7);
+        Ok(())
     }
 
     #[test]
-    fn test_jne() {
+    fn test_jne() -> Result<(), Box<dyn std::error::Error>> {
         let mut test_vm = VM::new();
         test_vm.registers[0] = 7;
         test_vm.equal_flag = false;
         test_vm.program = vec![JNE as u8, 0, 0, 0];
-        test_vm.run_once();
+        test_vm.run_once()?;
         assert_eq!(test_vm.pc, 7);
+        Ok(())
     }
 }
