@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::vm::VM;
+use crate::{vm::VM, assembler::parser::parse_program};
 
 struct ShouldExit;
 
@@ -24,35 +24,22 @@ impl REPL {
         loop {
             print!(">>> ");
             output.flush().unwrap_or_else(|_| println!(""));
+            buffer.clear();
             input.read_line(&mut buffer).expect("Failed to read stdin");
+
             if buffer.starts_with("!") {
                 if let Err(ShouldExit) = self.execute_command(&buffer[1..]) {
                     return Ok(());
                 };
-                buffer.clear();
                 continue;
             }
-            /*let mut split = buffer.split_whitespace();
-            let opcode_str = split.next().ok_or("No instruction name")?.trim().to_owned();
-            let args = split.collect::<Vec<&str>>();
-
-            let opcode = OpCode::from(opcode_str.clone());
-
-            if let OpCode::IGL = opcode {
-                println!("Unknown instruction {}", opcode_str);
-                buffer.clear();
-                continue;
-            }
-
-            let instruction = Instruction::new(opcode, self.parse_hex(args)?);*/
-            let program = crate::assembler::parser::program(&buffer)?.1;
+            
+            let program = parse_program(&buffer)?;
 
             self.vm.add_program(program.to_bytes());
             self.command_buffer.push(buffer.clone());
 
             self.vm.run();
-
-            buffer.clear();
         }
     }
 

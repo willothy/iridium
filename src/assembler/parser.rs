@@ -21,27 +21,15 @@ pub enum Token {
 #[derive(Debug, PartialEq)]
 pub struct AssemblerInstruction {
     opcode: Token,
-    operand1: Option<Token>,
-    operand2: Option<Token>,
-    operand3: Option<Token>,
+    operands: [Option<Token>; 3],
 }
 
 impl AssemblerInstruction {
-    pub fn new(
-        opcode: Token,
-        operand1: Option<Token>,
-        operand2: Option<Token>,
-        operand3: Option<Token>,
-    ) -> Self {
-        Self {
-            opcode,
-            operand1,
-            operand2,
-            operand3,
-        }
+    pub fn new(opcode: Token, operands: [Option<Token>; 3]) -> Self {
+        Self { opcode, operands }
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut results = vec![];
         match self.opcode {
             Token::Op { code } => {
@@ -52,10 +40,9 @@ impl AssemblerInstruction {
             }
         }
 
-        for operand in vec![&self.operand1, &self.operand2, &self.operand3] {
-            match operand {
-                Some(t) => AssemblerInstruction::extract_operand(t, &mut results),
-                None => {}
+        for operand in &self.operands {
+            if let Some(token) = operand {
+                AssemblerInstruction::extract_operand(token, &mut results)
             }
         }
         results
@@ -95,19 +82,23 @@ impl Program {
     }
 }
 
-pub fn program(s: &str) -> IResult<&str, Program, ()> {
+pub fn parse_program(s: &str) -> Result<Program, nom::Err<()>> {
+    Ok(self::program(s)?.1)
+}
+
+fn program(s: &str) -> IResult<&str, Program, ()> {
     match many1(instruction_one)(s) {
         Ok((rem, instructions)) => Ok((rem, Program { instructions })),
         Err(e) => Err(e),
     }
 }
 
-pub fn opcode(s: &str) -> IResult<&str, Token, ()> {
+fn opcode(s: &str) -> IResult<&str, Token, ()> {
     match alpha1(s) {
         Ok((rem, opcode)) => Ok((
             rem,
             Token::Op {
-                code: match OpCode::from(opcode.to_owned()) {
+                code: match OpCode::from(opcode.to_lowercase()) {
                     OpCode::IGL => return Err(nom::Err::Error(())),
                     opcode => opcode,
                 },
@@ -117,7 +108,7 @@ pub fn opcode(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-pub fn register(s: &str) -> IResult<&str, Token, ()> {
+fn register(s: &str) -> IResult<&str, Token, ()> {
     match tuple((char('$'), digit1))(s) {
         Ok((rem, (_, number))) => Ok((
             rem,
@@ -129,7 +120,7 @@ pub fn register(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-pub fn integer_operand(s: &str) -> IResult<&str, Token, ()> {
+fn integer_operand(s: &str) -> IResult<&str, Token, ()> {
     if s.starts_with("0x") {
         match map_res(
             preceded(
@@ -151,7 +142,7 @@ pub fn integer_operand(s: &str) -> IResult<&str, Token, ()> {
                 char('#'),
                 recognize(many1(terminated(one_of("0123456789"), many0(char('_'))))),
             )),
-            |e| u16::from_str_radix(&str::replace(e.1, "_", ""), 16),
+            |e| u16::from_str_radix(&str::replace(e.1, "_", ""), 10),
         )(s)
         {
             Ok((rem, value)) => Ok((rem, Token::IntegerOperand { value })),
@@ -161,7 +152,7 @@ pub fn integer_operand(s: &str) -> IResult<&str, Token, ()> {
 }
 
 // Opcode_load register integer_operand
-pub fn instruction_one(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+fn instruction_one(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(
         tuple((opcode, space1, register, space1, integer_operand)),
         newline,
@@ -169,7 +160,7 @@ pub fn instruction_one(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     {
         Ok((rem, (opcode, _, register, _, integer_operand))) => Ok((
             rem,
-            AssemblerInstruction::new(opcode, Some(register), Some(integer_operand), None),
+            AssemblerInstruction::new(opcode, [Some(register), Some(integer_operand), None]),
         )),
         Err(e) => Err(e),
     }
@@ -228,12 +219,14 @@ mod tests {
             result,
             Ok((
                 "",
-                AssemblerInstruction {
-                    opcode: Token::Op { code: OpCode::LOAD },
-                    operand1: Some(Token::Register { id: 0 }),
-                    operand2: Some(Token::IntegerOperand { value: 100 }),
-                    operand3: None
-                }
+                AssemblerInstruction::new(
+                    Token::Op { code: OpCode::LOAD },
+                    [
+                        Some(Token::Register { id: 0 }),
+                        Some(Token::IntegerOperand { value: 100 }),
+                        None
+                    ]
+                )
             ))
         );
     }
