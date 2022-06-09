@@ -1,5 +1,3 @@
-
-
 /// Represents an opcode, which tells our interpreter what to do with the following operands
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OpCode {
@@ -53,6 +51,70 @@ pub enum OpCode {
     RET,
     JNE,
     IGL = 100,
+}
+
+impl std::fmt::Display for OpCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from(*self))
+    }
+}
+
+impl From<String> for OpCode {
+    fn from(v: String) -> Self {
+        let lowercased_opcode = v.to_lowercase();
+        match lowercased_opcode.as_str() {
+            "load" => OpCode::LOAD,
+            "add" => OpCode::ADD,
+            "sub" => OpCode::SUB,
+            "mul" => OpCode::MUL,
+            "div" => OpCode::DIV,
+            "hlt" => OpCode::HLT,
+            "jmp" => OpCode::JMP,
+            "jmpf" => OpCode::JMPF,
+            "jmpb" => OpCode::JMPB,
+            "eq" => OpCode::EQ,
+            "neq" => OpCode::NE,
+            "gte" => OpCode::GTE,
+            "gt" => OpCode::GT,
+            "lte" => OpCode::LTE,
+            "lt" => OpCode::LT,
+            "jmpe" => OpCode::JEQ,
+            "nop" => OpCode::NOP,
+            "aloc" => OpCode::ALOC,
+            "inc" => OpCode::INC,
+            "dec" => OpCode::DEC,
+            "djmpe" => OpCode::DJMPE,
+            "prts" => OpCode::PRTS,
+            "loadf64" => OpCode::LOADF64,
+            "addf64" => OpCode::ADDF64,
+            "subf64" => OpCode::SUBF64,
+            "mulf64" => OpCode::MULF64,
+            "divf64" => OpCode::DIVF64,
+            "eqf64" => OpCode::EQF64,
+            "neqf64" => OpCode::NEQF64,
+            "gtf64" => OpCode::GTF64,
+            "gtef64" => OpCode::GTEF64,
+            "ltf64" => OpCode::LTF64,
+            "ltef64" => OpCode::LTEF64,
+            "shl" => OpCode::SHL,
+            "shr" => OpCode::SHR,
+            "and" => OpCode::AND,
+            "or" => OpCode::OR,
+            "xor" => OpCode::XOR,
+            "not" => OpCode::NOT,
+            "lui" => OpCode::LUI,
+            "cloop" => OpCode::CLOOP,
+            "loop" => OpCode::LOOP,
+            "loadm" => OpCode::LOADM,
+            "setm" => OpCode::SETM,
+            "push" => OpCode::PUSH,
+            "pop" => OpCode::POP,
+            "call" => OpCode::CALL,
+            "ret" => OpCode::RET,
+            "jne" => OpCode::JNE,
+            _ => OpCode::IGL,
+        }
+    }
 }
 
 impl From<OpCode> for String {
@@ -119,7 +181,7 @@ impl From<OpCode> for u8 {
     }
 }
 
-/// We implement this trait to make it easy to convert from a u8 to an Opcode
+/// We implement this trait to make it easy to convert from a u8 to an OpCode
 impl From<u8> for OpCode {
     fn from(v: u8) -> Self {
         use self::OpCode::*;
@@ -178,14 +240,54 @@ impl From<u8> for OpCode {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Instruction {
     opcode: OpCode,
+    operands: Vec<u8>,
+}
+
+impl std::fmt::Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} ", self.opcode)?;
+        for op in &self.operands {
+            write!(f, "{:02} ", op)?;
+        }
+        Ok(())
+    }
+}
+
+pub trait Tou8Vec {
+    fn to_u8_vec(&self) -> Vec<u8>;
+}
+
+impl Tou8Vec for Instruction {
+    fn to_u8_vec(&self) -> Vec<u8> {
+        let mut v = Vec::new();
+        v.push(self.opcode.into());
+        v.extend(self.operands.iter());
+        v
+    }
+}
+
+impl Into<Vec<u8>> for Instruction {
+    fn into(self) -> Vec<u8> {
+        let mut bytes = vec![self.opcode.into()];
+        bytes.extend(self.operands);
+        bytes
+    }
 }
 
 impl Instruction {
-    pub fn new(opcode: OpCode) -> Instruction {
-        Instruction { opcode }
+    pub fn new(opcode: OpCode, operands: Vec<u8>) -> Instruction {
+        Instruction { opcode, operands }
+    }
+
+    pub fn opcode(&self) -> &OpCode {
+        &self.opcode
+    }
+
+    pub fn operands(&self) -> &Vec<u8> {
+        &self.operands
     }
 }
 
@@ -196,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_create_instruction() {
-        let instruction = Instruction::new(OpCode::HLT);
+        let instruction = Instruction::new(OpCode::HLT, vec![]);
         assert_eq!(instruction.opcode, OpCode::HLT);
     }
 }

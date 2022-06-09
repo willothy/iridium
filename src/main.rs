@@ -1,9 +1,17 @@
 use std::process::ExitCode;
 
 mod instruction;
+mod repl;
 mod vm;
 
 fn main() -> ExitCode {
-    println!("{}", instruction::OpCode::HLT as u8);
-    return ExitCode::SUCCESS;
+    println!("Welcome to the VM!");
+    let mut repl = repl::REPL::new();
+    return match repl.run() {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(e) => {
+            println!("Error: {}", e);
+            ExitCode::FAILURE
+        }
+    };
 }
