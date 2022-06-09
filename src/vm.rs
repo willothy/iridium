@@ -5,6 +5,7 @@ pub struct VM {
     pc: usize,
     program: Vec<u8>,
     remainder: u32,
+    equal_flag: bool,
 }
 
 impl VM {
@@ -14,6 +15,7 @@ impl VM {
             program: vec![],
             pc: 0,
             remainder: 0,
+            equal_flag: false
         }
     }
 
@@ -78,6 +80,13 @@ impl VM {
                 self.remainder = (register1 % register2) as u32;
                 false // Continue
             },
+            EQ => {
+                let register1 = self.registers[self.next_8_bits() as usize];
+                let register2 = self.registers[self.next_8_bits() as usize];
+                self.equal_flag = register1 == register2;
+                self.next_8_bits();
+                false // Continue
+            },
             HLT => {
                 println!("HLT encountered");
                 true // Done
@@ -133,7 +142,7 @@ impl VM {
 mod tests {
     use super::*;
 
-    fn u8s_from_u16(num: u16) -> [u8; 2] {
+    fn expand(num: u16) -> [u8; 2] {
         [(num >> 8) as u8, num as u8]
     }
 
@@ -165,7 +174,7 @@ mod tests {
     #[test]
     fn test_load() {
         let mut program: Vec<u8> = vec![LOAD as u8, 0];
-        program.extend(u8s_from_u16(500));
+        program.extend(expand(500));
 
         let mut test_vm = VM::new().with_program(program);
         test_vm.run_once();
@@ -175,8 +184,8 @@ mod tests {
     #[test]
     fn test_add() {
         let mut test_vm = VM::new();
-        create_load_unchecked(&mut test_vm, 0, u8s_from_u16(10));
-        create_load_unchecked(&mut test_vm, 1, u8s_from_u16(15));
+        create_load_unchecked(&mut test_vm, 0, expand(10));
+        create_load_unchecked(&mut test_vm, 1, expand(15));
 
         test_vm.program.extend(vec![ADD as u8, 0, 1, 2]);
         test_vm.run();
@@ -186,8 +195,8 @@ mod tests {
     #[test]
     fn test_sub() {
         let mut test_vm = VM::new();
-        create_load_unchecked(&mut test_vm, 0, u8s_from_u16(10));
-        create_load_unchecked(&mut test_vm, 1, u8s_from_u16(15));
+        create_load_unchecked(&mut test_vm, 0, expand(10));
+        create_load_unchecked(&mut test_vm, 1, expand(15));
 
         test_vm.program.extend(vec![SUB as u8, 1, 0, 2]);
         test_vm.run();
@@ -197,8 +206,8 @@ mod tests {
     #[test]
     fn test_mul() {
         let mut test_vm = VM::new();
-        create_load_unchecked(&mut test_vm, 0, u8s_from_u16(2));
-        create_load_unchecked(&mut test_vm, 1, u8s_from_u16(15));
+        create_load_unchecked(&mut test_vm, 0, expand(2));
+        create_load_unchecked(&mut test_vm, 1, expand(15));
 
         test_vm.program.extend(vec![MUL as u8, 0, 1, 2]);
         test_vm.run();
@@ -208,8 +217,8 @@ mod tests {
     #[test]
     fn test_div() {
         let mut test_vm = VM::new();
-        create_load_unchecked(&mut test_vm, 0, u8s_from_u16(30));
-        create_load_unchecked(&mut test_vm, 1, u8s_from_u16(15));
+        create_load_unchecked(&mut test_vm, 0, expand(30));
+        create_load_unchecked(&mut test_vm, 1, expand(15));
 
         test_vm.program.extend(vec![DIV as u8, 0, 1, 2]);
 
@@ -220,8 +229,8 @@ mod tests {
     #[test]
     fn test_div_remainder() {
         let mut test_vm = VM::new();
-        create_load_unchecked(&mut test_vm, 0, u8s_from_u16(6));
-        create_load_unchecked(&mut test_vm, 1, u8s_from_u16(4));
+        create_load_unchecked(&mut test_vm, 0, expand(6));
+        create_load_unchecked(&mut test_vm, 1, expand(4));
 
         test_vm.program.extend(vec![DIV as u8, 0, 1, 2]);
 
@@ -243,9 +252,41 @@ mod tests {
         let mut test_vm = VM::new();
         create_load_unchecked(&mut test_vm, 0, [0, 6]); // Load 6 in
         test_vm.program.extend(vec![JMPF as u8, 0, 0, 0]); // Jump 6 bytes (past the last 2 bytes of this command, and the next command)
-        create_load_unchecked(&mut test_vm, 2, [0, 15]); // 
+        create_load_unchecked(&mut test_vm, 2, [0, 15]); //
         test_vm.program.extend(vec![ADD as u8, 2, 0, 3]);
         test_vm.run();
         assert_eq!(test_vm.registers[3], 6);
+    }
+
+    #[test]
+    fn test_jmpb() {
+        let mut test_vm = VM::new();
+        test_vm.pc = 4;
+        create_load_unchecked(&mut test_vm, 0, expand(0)); // Load 8 into register 0
+        create_load_unchecked(&mut test_vm, 0, expand(8)); // Load 8 into register 0
+        test_vm.program.extend(vec![JMPB as u8, 0, 0, 0]); // Jump 8 bytes back
+
+        test_vm.run_for(4);
+        assert_eq!(test_vm.registers[0], 0);
+    }
+
+    #[test]
+    fn test_eq_true() {
+        let mut test_vm = VM::new();
+        create_load_unchecked(&mut test_vm, 0, expand(10));
+        create_load_unchecked(&mut test_vm, 1, expand(10));
+        test_vm.program.extend(vec![EQ as u8, 0, 1, 0]);
+        test_vm.run_for(3);
+        assert_eq!(test_vm.equal_flag, true);
+    }
+
+    #[test]
+    fn test_eq_false() {
+        let mut test_vm = VM::new();
+        create_load_unchecked(&mut test_vm, 0, expand(20));
+        create_load_unchecked(&mut test_vm, 1, expand(10));
+        test_vm.program.extend(vec![EQ as u8, 0, 1, 0]);
+        test_vm.run();
+        assert_eq!(test_vm.equal_flag, false);
     }
 }
