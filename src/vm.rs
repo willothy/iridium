@@ -18,9 +18,7 @@ pub struct RegisterSet {
 
 impl RegisterSet {
     pub fn new() -> Self {
-        RegisterSet {
-            registers: [0; 32],
-        }
+        RegisterSet { registers: [0; 32] }
     }
 
     pub fn get(&self, index: usize) -> Result<&i32, String> {
@@ -83,7 +81,7 @@ impl VM {
         while !done {
             match self.execute_instruction() {
                 Ok(is_done) => done = is_done,
-                Err(e) => eprintln!("Error: {}", e)
+                Err(e) => eprintln!("Error: {}", e),
             }
         }
     }
@@ -93,11 +91,13 @@ impl VM {
             return Ok(true);
         }
         let instruction = self.get_next_instruction();
-        let opcode = instruction.opcode();
         let operands = instruction.operands();
-        match opcode {
+        match instruction.opcode() {
             LOAD => {
-                self.registers.set(operands[0] as usize, (Self::conv_u8s_u16(&[operands[1], operands[2]]) as u32) as i32)?;
+                self.registers.set(
+                    operands[0] as usize,
+                    (Self::conv_u8s_u16(&[operands[1], operands[2]]) as u32) as i32,
+                )?;
             }
             JMP => {
                 self.pc = *self.registers.get(operands[0] as usize)? as usize;
@@ -109,25 +109,40 @@ impl VM {
                 self.pc -= *self.registers.get(operands[0] as usize)? as usize;
             }
             ADD => {
-                self.registers.set(operands[2] as usize, self.registers.get(operands[0] as usize)? + self.registers.get(operands[1] as usize)?)?;
+                self.registers.set(
+                    operands[2] as usize,
+                    self.registers.get(operands[0] as usize)?
+                        + self.registers.get(operands[1] as usize)?,
+                )?;
             }
             SUB => {
-                self.registers.set(operands[2] as usize, self.registers.get(operands[0] as usize)? - self.registers.get(operands[1] as usize)?)?;
+                self.registers.set(
+                    operands[2] as usize,
+                    self.registers.get(operands[0] as usize)?
+                        - self.registers.get(operands[1] as usize)?,
+                )?;
             }
             MUL => {
-                self.registers.set(operands[2] as usize, self.registers.get(operands[0] as usize)? * self.registers.get(operands[1] as usize)?)?;
+                self.registers.set(
+                    operands[2] as usize,
+                    self.registers.get(operands[0] as usize)?
+                        * self.registers.get(operands[1] as usize)?,
+                )?;
             }
             DIV => {
                 let register1 = *self.registers.get(operands[0] as usize)?;
-                let register2 = *self.registers.get(operands[0] as usize)?;
-                self.registers.set(operands[2] as usize, register1 / register2)?;
+                let register2 = *self.registers.get(operands[1] as usize)?;
+                self.registers
+                    .set(operands[2] as usize, register1 / register2)?;
                 self.remainder = (register1 % register2) as u32;
             }
             EQ => {
-                self.equal_flag = *self.registers.get(operands[0] as usize)? == *self.registers.get(operands[1] as usize)?;
+                self.equal_flag = *self.registers.get(operands[0] as usize)?
+                    == *self.registers.get(operands[1] as usize)?;
             }
             NE => {
-                self.equal_flag = *self.registers.get(operands[0] as usize)? != *self.registers.get(operands[1] as usize)?;
+                self.equal_flag = *self.registers.get(operands[0] as usize)?
+                    != *self.registers.get(operands[1] as usize)?;
             }
             JEQ => {
                 if self.equal_flag {
@@ -233,7 +248,7 @@ mod tests {
 
         fn reset(&mut self) {
             self.pc = 0;
-            self.registers = [0; 32];
+            self.registers = RegisterSet::new();
             self.remainder = 0;
             self.program = vec![];
             self.equal_flag = false;

@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 
+mod assembler;
 mod instruction;
 mod repl;
 mod vm;
