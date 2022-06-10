@@ -1,13 +1,12 @@
 use nom::{
     character::complete::{newline, space1},
     combinator::opt,
-    sequence::{terminated, tuple},
+    sequence::{terminated, tuple, preceded},
     IResult,
 };
 
-use crate::assembler::instruction::AssemblerInstruction;
-
-use super::{label::label_declaration, parsers::*};
+use super::super::instruction::AssemblerInstruction;
+use super::parsers::*;
 
 /// OP $reg #value
 pub fn op_reg_val(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
@@ -77,14 +76,17 @@ pub fn op_reg_reg(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     }
 }
 
-pub fn instruction_combined(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
-    match tuple((
-        opt(label_declaration),
-        opcode,
-        opt(operand),
-        opt(operand),
-        opt(operand),
-    ))(s)
+pub fn instruction(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+    match terminated(
+        tuple((
+            opt(label_declaration),
+            opcode,
+            opt(preceded(space1, operand)),
+            opt(preceded(space1, operand)),
+            opt(preceded(space1, operand)),
+        )),
+        newline,
+    )(s)
     {
         Ok((rem, (label_dec, opcode, operand1, operand2, operand3))) => Ok((
             rem,

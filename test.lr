@@ -1,2 +1,8 @@
-load $3 #40
-
+load $0 #1
+load $1 #12
+load $2 #24
+eq $0 $1
+jne $2
+hlt
+inc $0
+jmp $1

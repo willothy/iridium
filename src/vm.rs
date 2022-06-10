@@ -120,13 +120,15 @@ impl VM {
         }
         let instruction = self.get_next_instruction();
         let operands = instruction.operands();
+
         println!(
-            "Executing instruction: {:4} {:04} {:04} {:04}",
-            instruction.opcode(),
+            "{} {:04} {:04} {:04}",
+            instruction.opcode().padded(),
             operands[0],
             operands[1],
-            operands[2]
+            operands[2],
         );
+
         match instruction.opcode() {
             LOAD => {
                 self.registers.set(
@@ -223,8 +225,6 @@ impl VM {
                 p
             })
             .collect();
-        //println!("Decoded {} {:04} {:04} {:04}", opcode.to_string(), operands[0], operands[1], operands[2]);
-
         Instruction::new(opcode, operands)
     }
 

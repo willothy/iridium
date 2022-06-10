@@ -6,6 +6,7 @@ use std::{
 
 use crate::{
     assembler::{program::parse_program, Assembler},
+    opcode::OpCode,
     vm::VM,
 };
 
@@ -59,7 +60,7 @@ impl REPL {
                 println!("Bye!");
                 return Err(ShouldExit);
             }
-            "load-file" => {
+            "open" => {
                 print!("Please enter the path to the file you wish to load: ");
                 std::io::stdout().flush().expect("Unable to flush stdout");
                 let mut tmp = String::new();
@@ -68,10 +69,18 @@ impl REPL {
                     .expect("Unable to read line from user");
                 let tmp = tmp.trim();
                 let filename = Path::new(&tmp);
-                let mut f = File::open(Path::new(&filename)).expect("File not found");
+                let mut f = match File::open(Path::new(&filename)) {
+                    Ok(f) => f,
+                    Err(_) => {
+                        println!("Unable to open file");
+                        return Ok(());
+                    }
+                };
                 let mut contents = String::new();
-                f.read_to_string(&mut contents)
-                    .expect("There was an error reading from the file");
+                if let Err(e) = f.read_to_string(&mut contents) {
+                    println!("Unable to read file: {}", e);
+                    return Ok(());
+                };
                 let program = match parse_program(&contents) {
                     Ok(program) => program,
                     Err(e) => {
@@ -87,20 +96,21 @@ impl REPL {
                 return Ok(());
             }
             "bytecode" => {
-                println!("Program:");
+                println!("Bytecode:");
                 let mut buffer = String::new();
                 for instruction in self.vm.read_program() {
-                    buffer.push_str(&format!("{:04} ", instruction));
+                    buffer.push_str(&format!("{:04x} ", instruction));
                     if buffer.len() >= 16 {
                         println!("{}", buffer);
                         buffer.clear();
                     }
                 }
-                println!("End of Program Listing");
+
+                println!("End of Bytecode");
                 return Ok(());
             }
-            "registers" => {
-                println!("Listing registers and all contents: ");
+            "reg" => {
+                println!("Register File: ");
                 //println!("{:#?}", self.vm.read_registers());
                 let mut buffer = String::from("[ ");
                 for (i, register) in self.vm.read_registers().iter().enumerate() {
@@ -111,15 +121,26 @@ impl REPL {
                 }
                 buffer.push_str(" ]");
                 println!("{}", buffer);
-                println!("End of Register Listing");
+                println!("End of Register File");
                 return Ok(());
             }
-            "history" => {
-                println!("Instruction History:");
-                for instruction in &self.command_buffer {
-                    println!("{}", instruction);
+            "program" => {
+                println!("Program:");
+                let mut instruction = Vec::new();
+                for byte in self.vm.read_program().iter() {
+                    if instruction.len() == 4 {
+                        println!(
+                            "{} {:04} {:04} {:04}",
+                            OpCode::from(instruction[0]).padded(),
+                            instruction[1],
+                            instruction[2],
+                            instruction[3]
+                        );
+                        instruction.clear();
+                    }
+                    instruction.push(*byte);
                 }
-                println!("End of Instruction History");
+                println!("End of Program");
                 return Ok(());
             }
             _ => {

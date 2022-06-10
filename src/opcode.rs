@@ -59,6 +59,16 @@ impl std::fmt::Display for OpCode {
     }
 }
 
+impl OpCode {
+    pub fn padded(self) -> String {
+        let mut padded: String = self.into();
+        while padded.len() < 4 {
+            padded.push(' ');
+        }
+        padded
+    }
+}
+
 impl From<&str> for OpCode {
     fn from(op_str: &str) -> Self {
         match op_str {
