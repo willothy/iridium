@@ -1,7 +1,7 @@
 mod formats;
-pub mod parsers;
-mod token;
 mod label;
+pub mod parsers;
 mod program;
+mod token;
 pub use program::*;
 pub use token::*;

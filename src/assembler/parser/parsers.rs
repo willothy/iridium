@@ -13,7 +13,15 @@ use nom::{
 use super::{formats::*, Program, Token};
 
 pub(in crate::assembler) fn program(s: &str) -> IResult<&str, Program, ()> {
-    match many1(alt((op, op_reg, op_reg_reg, op_reg_reg_reg, op_reg_val, instruction_combined)))(s) {
+    match many1(alt((
+        op,
+        op_reg,
+        op_reg_reg,
+        op_reg_reg_reg,
+        op_reg_val,
+        instruction_combined,
+    )))(s)
+    {
         Ok((rem, instructions)) => Ok((rem, Program { instructions })),
         Err(e) => Err(e),
     }
@@ -85,10 +93,6 @@ pub(in crate::assembler) fn integer_operand(mut s: &str) -> IResult<&str, Token,
         Err(e) => Err(e),
     }
 }
-
-
-
-
 
 /// Tests for parser
 #[cfg(test)]

@@ -1,4 +1,8 @@
-use std::{io::{self, Write, Read}, path::Path, fs::File};
+use std::{
+    fs::File,
+    io::{self, Read, Write},
+    path::Path,
+};
 
 use crate::{assembler::parser::parse_program, vm::VM};
 
@@ -56,19 +60,20 @@ impl REPL {
                 print!("Please enter the path to the file you wish to load: ");
                 std::io::stdout().flush().expect("Unable to flush stdout");
                 let mut tmp = String::new();
-                std::io::stdin().read_line(&mut tmp).expect("Unable to read line from user");
+                std::io::stdin()
+                    .read_line(&mut tmp)
+                    .expect("Unable to read line from user");
                 let tmp = tmp.trim();
                 let filename = Path::new(&tmp);
                 let mut f = File::open(Path::new(&filename)).expect("File not found");
                 let mut contents = String::new();
-                f.read_to_string(&mut contents).expect("There was an error reading from the file");
+                f.read_to_string(&mut contents)
+                    .expect("There was an error reading from the file");
                 let program = match parse_program(&contents) {
-                    Ok(program) => {
-                        program
-                    },
+                    Ok(program) => program,
                     Err(e) => {
                         println!("Unable to parse input: {:?}", e);
-                        return Ok(())
+                        return Ok(());
                     }
                 };
                 self.vm.add_program(program.to_bytes());

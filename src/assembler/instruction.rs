@@ -23,6 +23,18 @@ impl AssemblerInstruction {
         }
     }
 
+    pub fn is_label(&self) -> bool {
+        self.label.is_some()
+    }
+
+    pub fn label_name(&self) -> Option<&str> {
+        match self.label {
+            Some(Token::LabelUsage { ref name}) => Some(name),
+            Some(Token::LabelDeclaration { ref name }) => Some(name),
+            _ => None,
+        }
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut results = vec![];
         match self.opcode {

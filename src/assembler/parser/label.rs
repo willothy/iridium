@@ -1,7 +1,13 @@
-use nom::{bytes::complete::tag, character::complete::{alpha1, multispace1}, sequence::tuple, IResult, combinator::opt, character::complete::char};
+use nom::{
+    bytes::complete::tag,
+    character::complete::char,
+    character::complete::{alpha1, multispace1},
+    combinator::opt,
+    sequence::tuple,
+    IResult,
+};
 
 use super::Token;
-
 
 pub(in crate::assembler) fn label_declaration(s: &str) -> IResult<&str, Token, ()> {
     match tuple((alpha1, char(':')))(s) {
@@ -37,7 +43,12 @@ mod tests {
         let result = label_declaration("test:");
         assert_eq!(result.is_ok(), true);
         let (_, token) = result.unwrap();
-        assert_eq!(token, Token::LabelDeclaration { name: "test".to_string() });
+        assert_eq!(
+            token,
+            Token::LabelDeclaration {
+                name: "test".to_string()
+            }
+        );
         let result = label_declaration("test");
         assert_eq!(result.is_ok(), false);
     }
@@ -47,9 +58,13 @@ mod tests {
         let result = label_usage("@test");
         assert_eq!(result.is_ok(), true);
         let (_, token) = result.unwrap();
-        assert_eq!(token, Token::LabelUsage { name: "test".to_string() });
+        assert_eq!(
+            token,
+            Token::LabelUsage {
+                name: "test".to_string()
+            }
+        );
         let result = label_usage("test");
         assert_eq!(result.is_ok(), false);
     }
-
 }

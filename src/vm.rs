@@ -109,7 +109,7 @@ impl VM {
         while !done {
             match self.execute_instruction() {
                 Ok(is_done) => done = is_done,
-                Err(e) => eprintln!("Error: {}", e),
+                Err(e) => println!("Error: {}", e),
             }
         }
     }
@@ -199,7 +199,7 @@ impl VM {
             }
             _ => {
                 println!("Unrecognized opcode");
-                return Ok(true); // Done
+                return Err("Unrecognized opcode.".to_string()); // Done
             }
         }
         Ok(false)
