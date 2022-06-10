@@ -1,6 +1,4 @@
 use nom::{
-    branch::alt,
-    bytes::complete::tag,
     character::{complete::alpha1, streaming::char},
     combinator::opt,
     sequence::tuple,
@@ -9,7 +7,7 @@ use nom::{
 
 use crate::assembler::instruction::AssemblerInstruction;
 
-use super::parser::{parsers::operand, Token};
+use super::{parsers::operand, Token};
 
 pub(in crate::assembler) fn directive_declaration(s: &str) -> IResult<&str, Token, ()> {
     match tuple((char('.'), alpha1))(s) {

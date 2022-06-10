@@ -1,13 +1,13 @@
-use self::parser::{parse_program, Program};
-
-pub mod directive;
 pub mod instruction;
 pub mod parser;
 
+pub mod program;
+pub use program::Program;
+
 #[derive(Debug)]
-enum AssemblerPhase {
+pub enum AssemblerPhase {
     First,
-    Second
+    Second,
 }
 
 #[derive(Debug)]
@@ -24,15 +24,15 @@ impl Assembler {
         }
     }
 
-    pub fn assemble(&mut self, raw: &str) -> Option<Vec<u8>> {
-        match parse_program(raw) {
+    pub fn assemble(&mut self, raw: &str) -> Result<Vec<u8>, nom::Err<()>> {
+        match program::parse_program(raw) {
             Ok(program) => {
                 self.process_first_phase(&program);
-                Some(self.process_second_phase(&program))
+                Ok(self.process_second_phase(&program))
             }
             Err(e) => {
                 println!("{}", e);
-                None
+                Err(e)
             }
         }
     }
@@ -45,10 +45,16 @@ impl Assembler {
     fn process_second_phase(&mut self, p: &Program) -> Vec<u8> {
         let mut program: Vec<u8> = vec![];
         for i in &p.instructions {
-            let mut bytes = i.to_bytes(&self.symbols);
+            let mut bytes = i.to_bytes(/* &self.symbols */);
             program.append(&mut bytes);
         }
-        program.extend(p.instructions.iter().map(|i| i.to_bytes(&self.symbols)));
+        let p = p
+            .instructions
+            .iter()
+            .map(|i| i.to_bytes(/* &self.symbols */))
+            .flatten()
+            .collect::<Vec<u8>>();
+        program.extend(p);
         program
     }
 
@@ -90,7 +96,7 @@ impl Symbol {
 
 #[derive(Debug)]
 pub enum SymbolType {
-    Label
+    Label,
 }
 
 #[derive(Debug)]
@@ -100,9 +106,7 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new() -> Self {
-        Self {
-            symbols: vec![],
-        }
+        Self { symbols: vec![] }
     }
 
     pub fn add_symbol(&mut self, symbol: Symbol) {
@@ -143,12 +147,12 @@ mod tests {
     #[test]
     fn test_assemble_program() {
         let mut asm = Assembler::new();
-        let test_string = "load $0 #100\nload $1 #1\nload $2 #0\ntest: inc $0\nneq $0 $2\njmpe @test\nhlt";
+        let test_string =
+            "load $0 #100\nload $1 #1\nload $2 #0\ntest: inc $0\nneq $0 $2\njmpe @test\nhlt";
         let program = asm.assemble(test_string).unwrap();
         let mut vm = VM::new();
         assert_eq!(program.len(), 21);
         vm.add_program(program);
         assert_eq!(vm.read_program().len(), 21);
     }
-
 }

@@ -120,11 +120,18 @@ impl VM {
         }
         let instruction = self.get_next_instruction();
         let operands = instruction.operands();
+        println!(
+            "Executing instruction: {:4} {:04} {:04} {:04}",
+            instruction.opcode(),
+            operands[0],
+            operands[1],
+            operands[2]
+        );
         match instruction.opcode() {
             LOAD => {
                 self.registers.set(
                     operands[0] as usize,
-                    Self::conv_u8s_i16(&[operands[1], operands[2]]) as i32,
+                    Self::conv_u8s_u16(&[operands[1], operands[2]]) as i32,
                 )?;
             }
             INC => {
@@ -195,6 +202,7 @@ impl VM {
             }
             HLT => {
                 println!("HLT encountered");
+                self.pc = self.program.len();
                 return Ok(true); // Done
             }
             _ => {
@@ -207,14 +215,15 @@ impl VM {
 
     fn get_next_instruction(&mut self) -> Instruction {
         let opcode = self.decode_opcode();
-        let operands: Vec<u8> = vec![0 as u8, 0, 0]
+        let operands: Vec<u8> = vec![0u8, 0u8, 0u8]
             .iter()
             .map(|_| {
-                let byte = self.program[self.pc];
+                let p = self.program[self.pc];
                 self.pc += 1;
-                byte
+                p
             })
             .collect();
+        //println!("Decoded {} {:04} {:04} {:04}", opcode.to_string(), operands[0], operands[1], operands[2]);
 
         Instruction::new(opcode, operands)
     }
@@ -225,8 +234,8 @@ impl VM {
         opcode
     }
 
-    fn conv_u8s_i16(bytes: &[u8]) -> i16 {
-        ((bytes[0] as i16) << 8) | (bytes[1] as i16)
+    fn conv_u8s_u16(bytes: &[u8]) -> u16 {
+        ((bytes[0] as u16) << 8) | (bytes[1] as u16)
     }
 }
 

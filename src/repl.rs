@@ -4,7 +4,10 @@ use std::{
     path::Path,
 };
 
-use crate::{assembler::parser::parse_program, vm::VM};
+use crate::{
+    assembler::{program::parse_program, Assembler},
+    vm::VM,
+};
 
 struct ShouldExit;
 
@@ -25,6 +28,7 @@ impl REPL {
         let mut buffer = String::new();
         let mut output = io::stdout();
         let input = io::stdin();
+        let mut asm = Assembler::new();
         loop {
             if *self.vm.read_pc() < self.vm.program_len() {
                 self.vm.run();
@@ -41,9 +45,8 @@ impl REPL {
                 continue;
             }
 
-            let program = parse_program(&buffer)?;
-
-            self.vm.add_program(program.to_bytes());
+            let program = asm.assemble(&buffer)?;
+            self.vm.add_program(program);
             self.command_buffer.push(buffer.clone());
 
             self.vm.run();

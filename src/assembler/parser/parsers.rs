@@ -1,4 +1,7 @@
+use super::{formats::*, Token};
+use crate::assembler::Program;
 use crate::opcode::OpCode;
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -10,9 +13,7 @@ use nom::{
     IResult,
 };
 
-use super::{formats::*, Program, Token};
-
-pub(in crate::assembler) fn program(s: &str) -> IResult<&str, Program, ()> {
+pub fn program(s: &str) -> IResult<&str, Program, ()> {
     match many1(alt((
         op,
         op_reg,
@@ -27,14 +28,14 @@ pub(in crate::assembler) fn program(s: &str) -> IResult<&str, Program, ()> {
     }
 }
 
-pub(in crate::assembler) fn operand(s: &str) -> IResult<&str, Token, ()> {
+pub fn operand(s: &str) -> IResult<&str, Token, ()> {
     match alt((register, integer_operand))(s) {
         Ok((rem, token)) => Ok((rem, token)),
         Err(e) => Err(e),
     }
 }
 
-pub(in crate::assembler) fn opcode(s: &str) -> IResult<&str, Token, ()> {
+pub fn opcode(s: &str) -> IResult<&str, Token, ()> {
     match alpha1(s) {
         Ok((rem, opcode)) => Ok((
             rem,
@@ -49,7 +50,7 @@ pub(in crate::assembler) fn opcode(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-pub(in crate::assembler) fn register(s: &str) -> IResult<&str, Token, ()> {
+pub fn register(s: &str) -> IResult<&str, Token, ()> {
     match tuple((char('$'), digit1))(s) {
         Ok((rem, (_, number))) => Ok((
             rem,
@@ -61,7 +62,7 @@ pub(in crate::assembler) fn register(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-pub(in crate::assembler) fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
+pub fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
     let mut sign_bit = false;
     if s.starts_with("-") {
         sign_bit = true;

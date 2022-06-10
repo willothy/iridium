@@ -10,7 +10,7 @@ use crate::assembler::instruction::AssemblerInstruction;
 use super::{label::label_declaration, parsers::*};
 
 /// OP $reg #value
-pub(in crate::assembler) fn op_reg_val(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+pub fn op_reg_val(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(
         tuple((opcode, space1, register, space1, integer_operand)),
         newline,
@@ -30,7 +30,7 @@ pub(in crate::assembler) fn op_reg_val(s: &str) -> IResult<&str, AssemblerInstru
 }
 
 /// OP
-pub(in crate::assembler) fn op(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+pub fn op(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(opcode, newline)(s) {
         Ok((rem, opcode)) => Ok((
             rem,
@@ -41,7 +41,7 @@ pub(in crate::assembler) fn op(s: &str) -> IResult<&str, AssemblerInstruction, (
 }
 
 /// OP $reg $reg $reg
-pub(in crate::assembler) fn op_reg_reg_reg(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+pub fn op_reg_reg_reg(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(
         tuple((opcode, space1, register, space1, register, space1, register)),
         newline,
@@ -56,7 +56,7 @@ pub(in crate::assembler) fn op_reg_reg_reg(s: &str) -> IResult<&str, AssemblerIn
 }
 
 /// Op $reg
-pub(in crate::assembler) fn op_reg(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+pub fn op_reg(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(tuple((opcode, space1, register)), newline)(s) {
         Ok((rem, (opcode, _, register))) => Ok((
             rem,
@@ -67,7 +67,7 @@ pub(in crate::assembler) fn op_reg(s: &str) -> IResult<&str, AssemblerInstructio
 }
 
 /// OP $reg $reg
-pub(in crate::assembler) fn op_reg_reg(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+pub fn op_reg_reg(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(tuple((opcode, space1, register, space1, register)), newline)(s) {
         Ok((rem, (opcode, _, r0, _, r1))) => Ok((
             rem,
@@ -77,9 +77,7 @@ pub(in crate::assembler) fn op_reg_reg(s: &str) -> IResult<&str, AssemblerInstru
     }
 }
 
-pub(in crate::assembler) fn instruction_combined(
-    s: &str,
-) -> IResult<&str, AssemblerInstruction, ()> {
+pub fn instruction_combined(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match tuple((
         opt(label_declaration),
         opcode,

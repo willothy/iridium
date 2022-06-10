@@ -29,7 +29,7 @@ impl AssemblerInstruction {
 
     pub fn label_name(&self) -> Option<&str> {
         match self.label {
-            Some(Token::LabelUsage { ref name}) => Some(name),
+            Some(Token::LabelUsage { ref name }) => Some(name),
             Some(Token::LabelDeclaration { ref name }) => Some(name),
             _ => None,
         }
@@ -48,7 +48,7 @@ impl AssemblerInstruction {
 
         for operand in &self.operands {
             if let Some(token) = operand {
-                AssemblerInstruction::extract_operand(token, &mut results)
+                AssemblerInstruction::extract_operand(token, &mut results);
             }
         }
         while results.len() < 4 {

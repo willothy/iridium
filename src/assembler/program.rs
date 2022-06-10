@@ -15,6 +15,6 @@ impl Program {
     }
 }
 
-pub fn parse_program(s: &str) -> Result<Program, nom::Err<()>> {
-    Ok(super::parsers::program(s)?.1)
+pub fn parse_program(s: &str) -> Result<super::Program, nom::Err<()>> {
+    Ok(super::parser::parsers::program(s)?.1)
 }
