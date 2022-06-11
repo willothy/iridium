@@ -110,8 +110,8 @@ impl VM {
         self.equal_flag = false;
     }
 
-    pub fn add_program(&mut self, command: Vec<u8>) {
-        self.program.extend(command);
+    pub fn add_program(&mut self, mut command: &mut Vec<u8>) {
+        self.program.append(&mut command);
     }
 
     pub fn run(&mut self) {

@@ -94,7 +94,8 @@ impl REPL {
                     println!("Unable to read file: {}", e);
                     return Ok(());
                 };
-                let program = match Assembler::new().assemble(&contents) {
+                let mut asm = Assembler::new();
+                let program = match asm.assemble(&contents) {
                     Ok(program) => program,
                     Err(e) => {
                         println!("Errors found: ");

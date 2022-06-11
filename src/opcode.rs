@@ -1,5 +1,4 @@
 use std::str::FromStr;
-
 use strum::{Display, EnumString};
 use num_traits::FromPrimitive;
 

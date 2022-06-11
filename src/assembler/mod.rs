@@ -79,10 +79,9 @@ impl Assembler {
         }
     }
 
-    pub fn assemble(&mut self, raw: &str) -> Result<Vec<u8>, Vec<AssemblerError>> {
+    pub fn assemble(&mut self, raw: &str) -> Result<&mut Vec<u8>, Vec<AssemblerError>> {
         match program::parse_program(raw) {
             Ok(program) => {
-                let mut assembled = Vec::new();// self.write_header();
                 self.process_first_phase(&program);
                 if !self.errors.is_empty() {
                     return Err(self.errors.clone());
@@ -92,9 +91,8 @@ impl Assembler {
                     self.errors.push(AssemblerError::InsufficientSections);
                     return Err(self.errors.clone());
                 }
-                let mut body = self.process_second_phase(&program);
-                assembled.append(&mut body);
-                Ok(assembled)
+                self.process_second_phase(&program);
+                Ok(&mut self.bytecode)
             }
             Err(e) => {
                 println!("{}", e);
@@ -122,18 +120,15 @@ impl Assembler {
         self.phase = AssemblerPhase::Second;
     }
 
-    fn process_second_phase(&mut self, p: &Program) -> Vec<u8> {
+    fn process_second_phase(&mut self, p: &Program) {
         let mut program: Vec<u8> = vec![];
         for i in &p.instructions {
             if i.is_instruction() {
                 program.append(&mut i.to_bytes(&self.symbols))
             }
-            if i.is_directive() {
-                self.process_directive(&i);
-            }
             self.current_instruction += 1;
         }
-        program
+        self.bytecode.append(&mut program);
     }
 
     fn process_label_declaration(&mut self, i: &AssemblerInstruction) {
