@@ -1,4 +1,3 @@
-mod formats;
 pub mod parsers;
 
 mod token;

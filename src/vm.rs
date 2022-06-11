@@ -100,6 +100,15 @@ impl VM {
         &self.registers.registers
     }
 
+    pub fn reset(&mut self) {
+        self.pc = 0;
+        self.registers = RegisterSet::new();
+        self.remainder = 0;
+        self.program = vec![];
+        self.heap = vec![];
+        self.equal_flag = false;
+    }
+
     pub fn add_program(&mut self, command: Vec<u8>) {
         self.program.extend(command);
     }
@@ -267,7 +276,6 @@ mod tests {
     trait VMTestHelpers {
         fn with_program(self, program: Vec<u8>) -> Self;
         fn run_for(&mut self, n: usize) -> Result<(), Box<dyn std::error::Error>>;
-        fn reset(&mut self);
         fn next_8_bits(&mut self) -> u8;
         fn next_16_bits(&mut self) -> u16;
         fn run_once(&mut self) -> Result<(), Box<dyn std::error::Error>>;
@@ -284,14 +292,6 @@ mod tests {
                 self.run_once()?;
             }
             Ok(())
-        }
-
-        fn reset(&mut self) {
-            self.pc = 0;
-            self.registers = RegisterSet::new();
-            self.remainder = 0;
-            self.program = vec![];
-            self.equal_flag = false;
         }
 
         fn next_8_bits(&mut self) -> u8 {

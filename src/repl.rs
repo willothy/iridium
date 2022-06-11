@@ -46,7 +46,14 @@ impl REPL {
                 continue;
             }
 
-            let program = asm.assemble(&buffer)?;
+            let program = match asm.assemble(&buffer) {
+                Ok(program) => program,
+                Err(e) => {
+                    println!("Errors found: ");
+                    e.iter().for_each(|e| println!("{}", e));
+                    continue;
+                }
+            };
             self.vm.add_program(program);
             self.command_buffer.push(buffer.clone());
 
@@ -54,11 +61,21 @@ impl REPL {
         }
     }
 
+    fn restart(&mut self) {
+        self.vm.reset();
+        self.command_buffer.clear();
+    }
+
     fn execute_command(&mut self, cmd: &str) -> Result<(), ShouldExit> {
         match cmd.trim() {
             "quit" => {
                 println!("Bye!");
                 return Err(ShouldExit);
+            }
+            "reset" => {
+                self.vm.reset();
+                println!("Reset complete.");
+                return Ok(());
             }
             "open" => {
                 print!("Please enter the path to the file you wish to load: ");
@@ -81,14 +98,15 @@ impl REPL {
                     println!("Unable to read file: {}", e);
                     return Ok(());
                 };
-                let program = match parse_program(&contents) {
+                let program = match Assembler::new().assemble(&contents) {
                     Ok(program) => program,
                     Err(e) => {
-                        println!("Unable to parse input: {:?}", e);
-                        return Ok(());
+                        println!("Errors found: ");
+                        e.iter().for_each(|e| println!("{}", e));
+                        return Ok(())
                     }
                 };
-                self.vm.add_program(program.to_bytes());
+                self.vm.add_program(program);
                 Ok(())
             }
             "state" => {

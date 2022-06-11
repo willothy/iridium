@@ -140,7 +140,7 @@ impl From<OpCode> for String {
             JMPF => "JMPF".to_string(),
             JMPB => "JMPB".to_string(),
             EQ => "EQ".to_string(),
-            NE => "NE".to_string(),
+            NE => "NEQ".to_string(),
             GTE => "GTE".to_string(),
             LTE => "LTE".to_string(),
             LT => "LT".to_string(),

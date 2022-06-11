@@ -1,7 +1,10 @@
-use super::{formats::*, Token};
+use super::Token;
 use crate::assembler::{Program, instruction::AssemblerInstruction};
 use crate::opcode::OpCode;
 
+use nom::bytes::complete::take_until;
+use nom::character::complete::{space1, newline, space0};
+use nom::sequence::preceded;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -14,15 +17,40 @@ use nom::{
 };
 
 pub fn program(s: &str) -> IResult<&str, Program, ()> {
-    match many1(instruction)(s)
+    match many1(alt((instruction, directive)))(s)
     {
         Ok((rem, instructions)) => Ok((rem, Program { instructions })),
         Err(e) => Err(e),
     }
 }
 
+pub fn instruction(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+    match terminated(
+        tuple((
+            opt(label_declaration),
+            opcode,
+            opt(preceded(space1, operand)),
+            opt(preceded(space1, operand)),
+            opt(preceded(space1, operand)),
+        )),
+        newline,
+    )(s)
+    {
+        Ok((rem, (label_dec, opcode, operand1, operand2, operand3))) => Ok((
+            rem,
+            AssemblerInstruction::new(
+                Some(opcode),
+                [operand1, operand2, operand3],
+                label_dec,
+                None,
+            ),
+        )),
+        Err(e) => Err(e),
+    }
+}
+
 pub fn operand(s: &str) -> IResult<&str, Token, ()> {
-    match alt((register, integer_operand))(s) {
+    match alt((register, integer_operand, label_usage, irstring))(s) {
         Ok((rem, token)) => Ok((rem, token)),
         Err(e) => Err(e),
     }
@@ -89,8 +117,8 @@ pub fn integer_operand(mut s: &str) -> IResult<&str, Token, ()> {
 }
 
 pub fn label_declaration(s: &str) -> IResult<&str, Token, ()> {
-    match tuple((alpha1, char(':')))(s) {
-        Ok((rem, (name, _))) => Ok((
+    match tuple((alpha1, char(':'), space0, opt(newline)))(s) {
+        Ok((rem, (name, _, _, _))) => Ok((
             rem,
             Token::LabelDeclaration {
                 name: name.to_string(),
@@ -102,8 +130,8 @@ pub fn label_declaration(s: &str) -> IResult<&str, Token, ()> {
 
 pub fn label_usage(s: &str) -> IResult<&str, Token, ()> {
     // Parsing a label usage.
-    match tuple((char('@'), alpha1, opt(multispace1)))(s) {
-        Ok((rem, (_, name, _))) => Ok((
+    match tuple((char('@'), alpha1))(s) {
+        Ok((rem, (_, name))) => Ok((
             rem,
             Token::LabelUsage {
                 name: name.to_lowercase(),
@@ -126,20 +154,21 @@ pub fn directive_declaration(s: &str) -> IResult<&str, Token, ()> {
 }
 
 pub fn directive_combined(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
-    match tuple((
+    match terminated(tuple((
         char('.'),
-        directive_declaration,
+        alpha1,
         opt(operand),
         opt(operand),
         opt(operand),
-    ))(s)
+        space0
+    )), newline)(s)
     {
-        Ok((rem, (_, directive, operand1, operand2, operand3))) => Ok((
+        Ok((rem, (_, directive, operand1, operand2, operand3, _))) => Ok((
             rem,
             AssemblerInstruction {
                 opcode: None,
                 operands: [operand1, operand2, operand3],
-                directive: Some(directive),
+                directive: Some(Token::Directive { name: directive.to_lowercase() }),
                 label: None,
             },
         )),
@@ -154,11 +183,25 @@ pub fn directive(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     }
 }
 
+pub fn irstring(s: &str) -> IResult<&str, Token, ()> {
+    match tuple(
+        (char('\''), take_until("'"), char('\'')))(s)
+    {
+        Ok((rem, (_, content, _))) => Ok((
+            rem,
+            Token::IRString {
+                name: content.to_owned(),
+            },
+        )),
+        Err(e) => Err(e),
+    }
+}
+
 /// Tests for parser
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::opcode::OpCode;
+    use crate::{opcode::OpCode, assembler::SymbolTable};
 
     #[test]
     fn test_parse_register() {
@@ -208,8 +251,10 @@ mod tests {
     fn test_program_to_bytes() {
         let result = program("load $0 #100\n");
         assert_eq!(result.is_ok(), true);
-        let (_, program) = result.unwrap();
-        let bytecode = program.to_bytes();
+        let (rest, program) = result.unwrap();
+        println!("{}", rest);
+        let bytecode = program.to_bytes(&SymbolTable::new());
+        println!("{:?}", bytecode);
         assert_eq!(bytecode.len(), 4);
         println!("{:?}", bytecode);
     }
@@ -250,5 +295,46 @@ mod tests {
         );
         let result = label_usage("test");
         assert_eq!(result.is_ok(), false);
+    }
+
+    #[test]
+    fn test_parse_instruction_form_one() {
+        let result = instruction("load $0 #100\n");
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                AssemblerInstruction::new(
+                    Some(Token::Op { code: OpCode::LOAD }),
+                    [
+                        Some(Token::Register { id: 0 }),
+                        Some(Token::IntegerOperand {
+                            value: 100,
+                            sign_bit: false
+                        }),
+                        None
+                    ],
+                    None,
+                    None
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_form_two() {
+        let result = instruction("hlt\n");
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                AssemblerInstruction::new(
+                    Some(Token::Op { code: OpCode::HLT }),
+                    [None, None, None],
+                    None,
+                    None
+                )
+            ))
+        );
     }
 }

@@ -1,3 +1,5 @@
+.data
+.code
 load $0 #1
 load $1 #12
 load $2 #24
