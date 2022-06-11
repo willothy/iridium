@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    assembler::{program::parse_program, Assembler},
+    assembler::Assembler,
     opcode::OpCode,
     vm::VM,
 };
@@ -51,6 +51,8 @@ impl REPL {
                 Err(e) => {
                     println!("Errors found: ");
                     e.iter().for_each(|e| println!("{}", e));
+                    self.vm.reset();
+                    self.command_buffer.clear();
                     continue;
                 }
             };
@@ -59,11 +61,6 @@ impl REPL {
 
             self.vm.run();
         }
-    }
-
-    fn restart(&mut self) {
-        self.vm.reset();
-        self.command_buffer.clear();
     }
 
     fn execute_command(&mut self, cmd: &str) -> Result<(), ShouldExit> {
@@ -84,8 +81,7 @@ impl REPL {
                 std::io::stdin()
                     .read_line(&mut tmp)
                     .expect("Unable to read line from user");
-                let tmp = tmp.trim();
-                let filename = Path::new(&tmp);
+                let filename = Path::new(tmp.trim());
                 let mut f = match File::open(Path::new(&filename)) {
                     Ok(f) => f,
                     Err(_) => {
@@ -145,18 +141,23 @@ impl REPL {
             "program" => {
                 println!("Program:");
                 let mut instruction = Vec::new();
-                for byte in self.vm.read_program().iter() {
+                //for byte in self.vm.read_program().iter() {
+                for byte in self.command_buffer.iter().map(|s| s.as_str()) {
                     if instruction.len() == 4 {
                         println!(
                             "{} {:04} {:04} {:04}",
-                            OpCode::from(instruction[0]).padded(),
+                            /* match OpCode::from(instruction[0]) {
+                                Ok(opcode) => opcode,
+                                Err(_) => OpCode::IGL,
+                            }.padded(), */
+                            OpCode::from_string(instruction[0]),
                             instruction[1],
                             instruction[2],
                             instruction[3]
                         );
                         instruction.clear();
                     }
-                    instruction.push(*byte);
+                    instruction.push(byte); // *byte
                 }
                 println!("End of Program");
                 return Ok(());

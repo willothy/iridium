@@ -67,17 +67,6 @@ impl AssemblerInstruction {
 
     pub fn to_bytes(&self, symbols: &SymbolTable) -> Vec<u8> {
         let mut results = vec![];
-        /*match &self.opcode {
-            Some(Token::Op { code }) => {
-                results.push(*code as u8);
-            }
-            Some(invalid) => {
-                panic!("Invalid opcode {}", invalid);
-            }
-            None => {
-                panic!("No opcode");
-            }
-        }*/
         if let Some(ref token) = self.opcode {
             match token {
                 Token::Op { code } => match code {
@@ -103,20 +92,12 @@ impl AssemblerInstruction {
         results
     }
 
-    fn extract_operand(t: &Token, results: &mut Vec<u8>, symbols: &SymbolTable) {
+    pub fn extract_operand(t: &Token, results: &mut Vec<u8>, symbols: &SymbolTable) {
         match t {
             Token::Register { id } => {
                 results.push(*id);
             }
             Token::IntegerOperand { value, sign_bit } => {
-                /*let converted = *value;
-                let byte1 = converted;
-                let byte2 = converted >> 8;
-                if *sign_bit {
-                    // handle signed numbers
-                }
-                results.push(byte2 as u8);
-                results.push(byte1 as u8);*/
                 let val = if *sign_bit {
                     -(*value as i16)
                 } else {
@@ -127,13 +108,6 @@ impl AssemblerInstruction {
                 results.push(wtr[1]);
                 results.push(wtr[0]);
             }
-            /*Token::IntegerOperand { value, sign_bit } => {
-                let mut wtr = vec![];
-                //wtr.wri
-                wtr.write_i16::<LittleEndian>(*value as i16).unwrap();
-                results.push(wtr[1]);
-                results.push(wtr[0]);
-            }*/
             Token::LabelUsage { name } => {
                 if let Some(value) = symbols.get_symbol_offset(name) {
                     let mut wtr = vec![];

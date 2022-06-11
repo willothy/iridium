@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut};
 
 use crate::opcode::{Instruction, OpCode, OpCode::*};
+use crate::logger::*;
 
 #[derive(Debug)]
 pub struct VM {
@@ -130,13 +131,13 @@ impl VM {
         let instruction = self.get_next_instruction();
         let operands = instruction.operands();
 
-        println!(
+        log!(format!(
             "{} {:04} {:04} {:04}",
             instruction.opcode().padded(),
             operands[0],
             operands[1],
             operands[2],
-        );
+        ));
 
         match instruction.opcode() {
             LOAD => {
@@ -192,7 +193,7 @@ impl VM {
                 self.equal_flag = *self.registers.get(operands[0] as usize)?
                     == *self.registers.get(operands[1] as usize)?;
             }
-            NE => {
+            NEQ => {
                 self.equal_flag = *self.registers.get(operands[0] as usize)?
                     != *self.registers.get(operands[1] as usize)?;
             }

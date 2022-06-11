@@ -1,8 +1,14 @@
 use std::process::ExitCode;
 
+#[macro_use]
+extern crate enum_primitive;
+extern crate num_traits;
+//extern crate num;
+
 mod assembler;
 mod opcode;
 mod repl;
+mod logger;
 mod vm;
 
 fn main() -> ExitCode {

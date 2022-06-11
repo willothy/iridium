@@ -1,10 +1,14 @@
 .data
 .code
-load $0 #1
+load $0 #5
 load $1 #12
-load $2 #24
+load $3 @noteq
+load $4 @eq
+eq:
 eq $0 $1
-jne $2
+jne $3
 hlt
+noteq:
 inc $0
-jmp $1
+jmp $4
+hlt

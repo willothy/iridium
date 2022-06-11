@@ -9,7 +9,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::one_of,
-    character::complete::{alpha1, char, digit1, multispace1},
+    character::complete::{alpha1, char, digit1},
     combinator::{map_res, recognize, opt},
     multi::{many0, many1},
     sequence::{terminated, tuple},
@@ -61,7 +61,13 @@ pub fn opcode(s: &str) -> IResult<&str, Token, ()> {
         Ok((rem, opcode)) => Ok((
             rem,
             Token::Op {
-                code: match OpCode::from(&opcode.to_lowercase()[..]) {
+                code: match OpCode::from_string(&opcode.to_lowercase()[..]) {
+                    /* Ok(opcode) => {
+                        match opcode {
+                            
+                        }
+                    }
+                    Err(e) => return Err(nom::Err::Error(())) */
                     OpCode::IGL => return Err(nom::Err::Error(())),
                     opcode => opcode,
                 },
@@ -141,19 +147,7 @@ pub fn label_usage(s: &str) -> IResult<&str, Token, ()> {
     }
 }
 
-pub fn directive_declaration(s: &str) -> IResult<&str, Token, ()> {
-    match tuple((char('.'), alpha1))(s) {
-        Ok((rem, (_, name))) => Ok((
-            rem,
-            Token::Directive {
-                name: name.to_lowercase(),
-            },
-        )),
-        Err(e) => Err(e),
-    }
-}
-
-pub fn directive_combined(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
+pub fn directive(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(tuple((
         char('.'),
         alpha1,
@@ -172,13 +166,6 @@ pub fn directive_combined(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
                 label: None,
             },
         )),
-        Err(e) => Err(e),
-    }
-}
-
-pub fn directive(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
-    match directive_combined(s) {
-        Ok((rem, instruction)) => Ok((rem, instruction)),
         Err(e) => Err(e),
     }
 }
@@ -260,11 +247,12 @@ mod tests {
     }
 
     #[test]
-    fn test_str_to_opcode() {
-        let opcode = OpCode::from("load");
+    fn test_str_to_opcode() -> Result<(), strum::ParseError> {
+        let opcode = OpCode::from_string("load");
         assert_eq!(opcode, OpCode::LOAD);
-        let opcode = OpCode::from("illegal");
+        let opcode = OpCode::from_string("illegal");
         assert_eq!(opcode, OpCode::IGL);
+        Ok(())
     }
 
     #[test]

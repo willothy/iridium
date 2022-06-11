@@ -151,8 +151,22 @@ impl Assembler {
             self.errors.push(AssemblerError::SymbolAlreadyDeclared);
             return;
         }
-
-        self.symbols.add_symbol(Symbol::new_offset(name, SymbolType::Label, self.current_instruction * 4));
+        let section_start = match self.current_section {
+            Some(AssemblerSection::Code { starting_instruction }) => {
+                starting_instruction
+            }
+            Some(AssemblerSection::Data { starting_instruction }) => {
+                starting_instruction
+            }
+            Some(AssemblerSection::Unknown) => {
+                return;
+            }
+            None => {
+                self.errors.push(AssemblerError::NoSegmentDeclarationFound{instruction: self.current_instruction});
+                return;
+            }
+        };
+        self.symbols.add_symbol(Symbol::new(name, SymbolType::Label, (self.current_instruction * 4) - (section_start + 4)));
     }
 
     fn process_directive(&mut self, i: &AssemblerInstruction) {
@@ -176,7 +190,7 @@ impl Assembler {
     }
 
     fn process_section_header(&mut self, name: &str) {
-        let new_section: AssemblerSection = name.into();
+        let new_section: AssemblerSection = AssemblerSection::new(name, self.current_instruction * 4);
 
         if new_section == AssemblerSection::Unknown {
             println!("Found an unknown section header: {:#?}", name);
@@ -191,7 +205,7 @@ impl Assembler {
         if self.phase != AssemblerPhase::First {
             return
         }
-        if let Some(s) = i.get_string_constant() {
+        if let Some(_) = i.get_string_constant() {
             match i.label_name() {
                 Some(name) => self.symbols.set_symbol_offset(&name, self.ro_offset),
                 None => {
@@ -204,30 +218,12 @@ impl Assembler {
             return
         }
     }
-
-    fn extract_labels(&mut self, p: &Program) {
-        let mut c = 0;
-        for i in &p.instructions {
-            if i.is_label() {
-                match i.label_name() {
-                    Some(name) => {
-                        let symbol = Symbol::new_offset(name, SymbolType::Label, c);
-                        self.symbols.add_symbol(symbol);
-                    }
-                    None => {
-                        panic!("Invalid label");
-                    }
-                }
-            }
-            c += 4;
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AssemblerSection {
-    Data { starting_instruction: Option<u32> },
-    Code { starting_instruction: Option<u32> },
+    Data { starting_instruction: u32 },
+    Code { starting_instruction: u32 },
     Unknown
 }
 
@@ -237,15 +233,25 @@ impl Default for AssemblerSection {
     }
 }
 
-impl From<&str> for AssemblerSection {
-    fn from(s: &str) -> AssemblerSection {
-        match s {
-            "data" => AssemblerSection::Data { starting_instruction: None },
-            "code" => AssemblerSection::Code { starting_instruction: None },
+impl AssemblerSection {
+    pub fn new(name: &str, starting_instruction: u32) -> Self {
+        match name {
+            "data" => AssemblerSection::Data { starting_instruction },
+            "code" => AssemblerSection::Code { starting_instruction },
             _ => AssemblerSection::Unknown
         }
     }
 }
+
+/* impl From<&str> for AssemblerSection {
+    fn from(s: &str) -> AssemblerSection {
+        match s {
+            "data" => AssemblerSection::Data { starting_instruction: 0 },
+            "code" => AssemblerSection::Code { starting_instruction: 0 },
+            _ => AssemblerSection::Unknown
+        }
+    }
+} */
 
 #[derive(Debug)]
 pub struct Symbol {
@@ -255,15 +261,7 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    pub fn new(name: &str, symbol_type: SymbolType) -> Self {
-        Self {
-            name: name.to_string(),
-            offset: None,
-            symbol_type,
-        }
-    }
-
-    pub fn new_offset(name: &str, symbol_type: SymbolType, offset: u32) -> Self {
+    pub fn new(name: &str, symbol_type: SymbolType, offset: u32) -> Self {
         Self {
             name: name.to_string(),
             offset: Some(offset),
@@ -323,7 +321,7 @@ mod tests {
     #[test]
     fn test_symbol_table() {
         let mut sym = SymbolTable::new();
-        let new_symbol = Symbol::new_offset("test", SymbolType::Label, 12);
+        let new_symbol = Symbol::new("test", SymbolType::Label, 12);
         sym.add_symbol(new_symbol);
         assert_eq!(sym.symbols.len(), 1);
         let v = sym.get_symbol_offset("test");
