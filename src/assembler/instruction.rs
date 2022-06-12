@@ -1,4 +1,4 @@
-use super::{parser::Token, SymbolTable, AssemblerError};
+use super::{parser::Token, AssemblerError, SymbolTable};
 use byteorder::{LittleEndian, WriteBytesExt};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -124,7 +124,6 @@ impl AssemblerInstruction {
         };
     }
 }
-
 
 #[derive(Debug, PartialEq)]
 pub struct Program {

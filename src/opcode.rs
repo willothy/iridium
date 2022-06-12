@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use strum::{Display, EnumString};
 use num_traits::FromPrimitive;
+use strum::{Display, EnumString};
 
 enum_from_primitive! {
     /// Represents an opcode, which tells our interpreter what to do with the following operands

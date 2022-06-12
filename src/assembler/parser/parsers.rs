@@ -4,6 +4,7 @@ use crate::opcode::OpCode;
 
 use nom::bytes::complete::take_until;
 use nom::character::complete::{space1, newline, space0};
+use nom::combinator::eof;
 use nom::sequence::{preceded, delimited};
 use nom::{
     branch::alt,
@@ -28,15 +29,26 @@ pub fn instruction(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(
         tuple((
             opt(label_declaration),
+            space0,
             opcode,
             opt(preceded(space1, operand)),
             opt(preceded(space1, operand)),
             opt(preceded(space1, operand)),
         )),
-        newline,
-    )(s)
+        newline
+    )(s).or(terminated(
+        tuple((
+            opt(label_declaration),
+            space0,
+            opcode,
+            opt(preceded(space1, operand)),
+            opt(preceded(space1, operand)),
+            opt(preceded(space1, operand)),
+        )),
+        eof
+    )(s))
     {
-        Ok((rem, (label_dec, opcode, operand1, operand2, operand3))) => Ok((
+        Ok((rem, (label_dec, _, opcode, operand1, operand2, operand3))) => Ok((
             rem,
             AssemblerInstruction::new(
                 Some(opcode),
@@ -143,21 +155,32 @@ pub fn label_usage(s: &str) -> IResult<&str, Token, ()> {
 
 pub fn directive(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
     match terminated(tuple((
+        opt(label_declaration),
+        space0,
         char('.'),
         alpha1,
-        opt(operand),
-        opt(operand),
-        opt(operand),
+        opt(preceded(space1, operand)),
+        opt(preceded(space1, operand)),
+        opt(preceded(space1, operand)),
         space0
-    )), newline)(s)
+    )), newline)(s).or(terminated(tuple((
+        opt(label_declaration),
+        space0,
+        char('.'),
+        alpha1,
+        opt(preceded(space1, operand)),
+        opt(preceded(space1, operand)),
+        opt(preceded(space1, operand)),
+        space0
+    )), eof)(s))
     {
-        Ok((rem, (_, directive, operand1, operand2, operand3, _))) => Ok((
+        Ok((rem, (label, _, _, directive, operand1, operand2, operand3, _))) => Ok((
             rem,
             AssemblerInstruction {
                 opcode: None,
                 operands: [operand1, operand2, operand3],
                 directive: Some(Token::Directive { name: directive.to_lowercase() }),
-                label: None,
+                label,
             },
         )),
         Err(e) => Err(e),
@@ -166,7 +189,7 @@ pub fn directive(s: &str) -> IResult<&str, AssemblerInstruction, ()> {
 
 pub fn irstring(s: &str) -> IResult<&str, Token, ()> {
     match tuple(
-        (char('\''), take_until("'"), char('\'')))(s)
+        (char('"'), take_until("\""), char('"')))(s)
     {
         Ok((rem, (_, content, _))) => Ok((
             rem,

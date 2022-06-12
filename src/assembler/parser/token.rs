@@ -22,7 +22,7 @@ impl std::fmt::Display for Token {
                 } else {
                     write!(f, "Int Operand: {}", value)
                 }
-            },
+            }
             Token::LabelDeclaration { name } => write!(f, "Label Decl: {}", name),
             Token::LabelUsage { name } => write!(f, "Label Usage: {}", name),
             Token::Directive { name } => write!(f, "Directive: {}", name),

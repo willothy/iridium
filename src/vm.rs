@@ -113,6 +113,14 @@ impl VM {
         self.program.append(&mut command);
     }
 
+    pub fn insert_into_program(&mut self, command: &mut Vec<u8>, address: usize) {
+        let (left, right) = self.program.split_at(address);
+        let mut joined = left.to_vec();
+        joined.append(command);
+        joined.extend(right.to_vec());
+        self.program = joined;
+    }
+
     pub fn run(&mut self) {
         let mut done = false;
         while !done {
@@ -137,7 +145,11 @@ impl VM {
             operands[0],
             operands[1],
             operands[2],
-            if opcode == &HLT { " ; HLT Encountered"} else { "" }
+            if opcode == &HLT {
+                " ; HLT Encountered"
+            } else {
+                ""
+            }
         );
 
         match opcode {
