@@ -1,6 +1,6 @@
 use crate::opcode::OpCode;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Op { code: OpCode },
     Register { id: u8 },

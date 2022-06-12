@@ -4,7 +4,7 @@ use crate::opcode::OpCode;
 
 use nom::bytes::complete::take_until;
 use nom::character::complete::{space1, newline, space0};
-use nom::sequence::preceded;
+use nom::sequence::{preceded, delimited};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -17,7 +17,7 @@ use nom::{
 };
 
 pub fn program(s: &str) -> IResult<&str, Program, ()> {
-    match many1(alt((instruction, directive)))(s)
+    match many1(delimited(space0, alt((instruction, directive)), space0))(s)
     {
         Ok((rem, instructions)) => Ok((rem, Program { instructions })),
         Err(e) => Err(e),
@@ -62,12 +62,6 @@ pub fn opcode(s: &str) -> IResult<&str, Token, ()> {
             rem,
             Token::Op {
                 code: match OpCode::from_string(&opcode.to_lowercase()[..]) {
-                    /* Ok(opcode) => {
-                        match opcode {
-                            
-                        }
-                    }
-                    Err(e) => return Err(nom::Err::Error(())) */
                     OpCode::IGL => return Err(nom::Err::Error(())),
                     opcode => opcode,
                 },
@@ -188,7 +182,7 @@ pub fn irstring(s: &str) -> IResult<&str, Token, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{opcode::OpCode, assembler::SymbolTable};
+    use crate::{opcode::OpCode, assembler::{SymbolTable, AssemblerError}};
 
     #[test]
     fn test_parse_register() {
@@ -235,15 +229,20 @@ mod tests {
     }
 
     #[test]
-    fn test_program_to_bytes() {
+    fn test_program_to_bytes() -> Result<(), AssemblerError> {
         let result = program("load $0 #100\n");
         assert_eq!(result.is_ok(), true);
         let (rest, program) = result.unwrap();
         println!("{}", rest);
-        let bytecode = program.to_bytes(&SymbolTable::new());
+        let mut bytecode = Vec::new();
+        for instruction in program.instructions {
+            bytecode.extend(instruction.to_bytes(&mut SymbolTable::new())?);
+        }
+
         println!("{:?}", bytecode);
         assert_eq!(bytecode.len(), 4);
         println!("{:?}", bytecode);
+        Ok(())
     }
 
     #[test]

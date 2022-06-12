@@ -1,17 +1,6 @@
 use std::ops::{Index, IndexMut};
 
 use crate::opcode::{Instruction, OpCode, OpCode::*};
-use crate::logger::*;
-
-#[derive(Debug)]
-pub struct VM {
-    registers: RegisterSet,
-    pc: usize,
-    program: Vec<u8>,
-    heap: Vec<u8>,
-    remainder: u32,
-    equal_flag: bool,
-}
 
 #[derive(Debug)]
 pub struct RegisterSet {
@@ -73,6 +62,16 @@ impl IndexMut<usize> for RegisterSet {
     }
 }
 
+#[derive(Debug)]
+pub struct VM {
+    registers: RegisterSet,
+    pc: usize,
+    program: Vec<u8>,
+    heap: Vec<u8>,
+    remainder: u32,
+    equal_flag: bool,
+}
+
 impl VM {
     pub fn new() -> Self {
         Self {
@@ -117,29 +116,31 @@ impl VM {
     pub fn run(&mut self) {
         let mut done = false;
         while !done {
-            match self.execute_instruction() {
-                Ok(is_done) => done = is_done,
+            match self.step() {
+                Ok((is_done, _)) => done = is_done,
                 Err(e) => println!("Error: {}", e),
             }
         }
     }
 
-    fn execute_instruction(&mut self) -> Result<bool, String> {
+    pub fn step(&mut self) -> Result<(bool, String), String> {
         if self.pc >= self.program.len() {
-            return Ok(true);
+            return Ok((true, "EOF".to_string()));
         }
         let instruction = self.get_next_instruction();
         let operands = instruction.operands();
+        let opcode = instruction.opcode();
 
-        log!(format!(
-            "{} {:04} {:04} {:04}",
-            instruction.opcode().padded(),
+        let log_message = format!(
+            "{} {:04} {:04} {:04}{}",
+            opcode.padded(),
             operands[0],
             operands[1],
             operands[2],
-        ));
+            if opcode == &HLT { " ; HLT Encountered"} else { "" }
+        );
 
-        match instruction.opcode() {
+        match opcode {
             LOAD => {
                 self.registers.set(
                     operands[0] as usize,
@@ -213,16 +214,15 @@ impl VM {
                 self.heap.resize(new_end as usize, 0);
             }
             HLT => {
-                println!("HLT encountered");
                 self.pc = self.program.len();
-                return Ok(true); // Done
+                return Ok((true, log_message)); // Done
             }
             _ => {
                 println!("Unrecognized opcode");
                 return Err("Unrecognized opcode.".to_string()); // Done
             }
         }
-        Ok(false)
+        Ok((false, log_message))
     }
 
     fn get_next_instruction(&mut self) -> Instruction {
@@ -310,7 +310,7 @@ mod tests {
         }
 
         fn run_once(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-            self.execute_instruction()?;
+            self.step()?;
             Ok(())
         }
     }

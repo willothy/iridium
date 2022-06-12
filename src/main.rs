@@ -8,7 +8,6 @@ extern crate num_traits;
 mod assembler;
 mod opcode;
 mod repl;
-mod logger;
 mod vm;
 
 fn main() -> ExitCode {

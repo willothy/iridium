@@ -7,6 +7,9 @@ load $4 @eq
 eq:
 eq $0 $1
 jne $3
+load $1 #0
+load $3 #0
+load $4 #0
 hlt
 noteq:
 inc $0

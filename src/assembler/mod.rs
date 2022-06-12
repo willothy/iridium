@@ -1,8 +1,7 @@
 pub mod instruction;
 pub mod parser;
 
-pub mod program;
-pub use program::Program;
+pub use instruction::Program;
 
 use self::instruction::AssemblerInstruction;
 
@@ -56,6 +55,8 @@ pub struct Assembler {
     pub phase: AssemblerPhase,
     pub symbols: SymbolTable,
     pub ro: Vec<u8>,
+    pub code: String,
+    pub program: Program,
     pub bytecode: Vec<u8>,
     ro_offset: u32,
     sections: Vec<AssemblerSection>,
@@ -70,6 +71,10 @@ impl Assembler {
             phase: AssemblerPhase::First,
             symbols: SymbolTable::new(),
             ro: vec![],
+            code: String::new(),
+            program: Program {
+                instructions: vec![],
+            },
             bytecode: vec![],
             ro_offset: 0,
             sections: vec![],
@@ -79,32 +84,32 @@ impl Assembler {
         }
     }
 
-    pub fn assemble(&mut self, raw: &str) -> Result<&mut Vec<u8>, Vec<AssemblerError>> {
-        match program::parse_program(raw) {
+    pub fn assemble(&mut self, raw: &str) -> Result<&mut Vec<u8>, &Vec<AssemblerError>> {
+        self.code = raw.to_string();
+        match parser::parse_program(&self.code) {
             Ok(program) => {
-                self.process_first_phase(&program);
+                self.program = program;
+                self.process_first_phase();
                 if !self.errors.is_empty() {
-                    return Err(self.errors.clone());
+                    return Err(&self.errors);
                 }
                 if self.sections.len() != 2  {
-                    println!("Did not find at least two sections");
                     self.errors.push(AssemblerError::InsufficientSections);
-                    return Err(self.errors.clone());
+                    return Err(&self.errors);
                 }
-                self.process_second_phase(&program);
+                self.process_second_phase();
                 Ok(&mut self.bytecode)
             }
             Err(e) => {
                 println!("{}", e);
                 self.errors.push(AssemblerError::ParseError { error: e.to_string() });
-                Err(self.errors.clone())
+                Err(&self.errors)
             }
         }
     }
 
-    fn process_first_phase(&mut self, p: &Program) {
-        //self.extract_labels(p);
-        for i in &p.instructions {
+    fn process_first_phase(&mut self) -> &mut Self {
+        for i in self.program.instructions.clone() {
             if i.is_label() {
                 if self.current_section.is_some() {
                     self.process_label_declaration(&i);
@@ -118,13 +123,20 @@ impl Assembler {
             self.current_instruction += 1;
         }
         self.phase = AssemblerPhase::Second;
+        self
     }
 
-    fn process_second_phase(&mut self, p: &Program) {
+    fn process_second_phase(&mut self) {
         let mut program: Vec<u8> = vec![];
-        for i in &p.instructions {
+        for i in &self.program.instructions {
             if i.is_instruction() {
-                program.append(&mut i.to_bytes(&self.symbols))
+                program.append(&mut match i.to_bytes(&self.symbols) {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        self.errors.push(e);
+                        return;
+                    }
+                });
             }
             self.current_instruction += 1;
         }
@@ -222,12 +234,6 @@ pub enum AssemblerSection {
     Unknown
 }
 
-impl Default for AssemblerSection {
-    fn default() -> AssemblerSection {
-        AssemblerSection::Unknown
-    }
-}
-
 impl AssemblerSection {
     pub fn new(name: &str, starting_instruction: u32) -> Self {
         match name {
@@ -238,21 +244,11 @@ impl AssemblerSection {
     }
 }
 
-/* impl From<&str> for AssemblerSection {
-    fn from(s: &str) -> AssemblerSection {
-        match s {
-            "data" => AssemblerSection::Data { starting_instruction: 0 },
-            "code" => AssemblerSection::Code { starting_instruction: 0 },
-            _ => AssemblerSection::Unknown
-        }
-    }
-} */
-
 #[derive(Debug)]
 pub struct Symbol {
     name: String,
     offset: Option<u32>,
-    symbol_type: SymbolType,
+    pub symbol_type: SymbolType,
 }
 
 impl Symbol {
@@ -340,17 +336,13 @@ neq $0 $2
 jeq @test
 hlt
 ";
-        let program = match asm.assemble(test_string) {
-            Ok(p) => p,
-            Err(e) => {
-                println!("{:?}", asm.symbols.symbols);
-                return Err(e)
-            }
-        };
+        if let Err(e) = asm.assemble(test_string) {
+            return Err(e.clone())
+        }
         let mut vm = VM::new();
-        assert_eq!(program.len(), 28);
-        vm.add_program(program);
-        assert_eq!(vm.read_program().len(), 28);
+        assert_eq!(asm.bytecode.len(), 28);
+        vm.add_program(&mut asm.bytecode);
+        assert_eq!(vm.program_len(), 28);
         Ok(())
     }
 }

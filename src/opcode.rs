@@ -1,4 +1,5 @@
 use std::str::FromStr;
+
 use strum::{Display, EnumString};
 use num_traits::FromPrimitive;
 
@@ -71,7 +72,7 @@ impl OpCode {
     }
 
     pub fn from_string(s: &str) -> Self {
-        match OpCode::from_str(s.to_uppercase().as_str()) {
+        match OpCode::from_str(s) {
             Ok(opcode) => opcode,
             Err(_) => OpCode::IGL,
         }

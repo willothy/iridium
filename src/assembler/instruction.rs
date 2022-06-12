@@ -1,7 +1,7 @@
-use super::{parser::Token, SymbolTable};
+use super::{parser::Token, SymbolTable, AssemblerError};
 use byteorder::{LittleEndian, WriteBytesExt};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AssemblerInstruction {
     pub opcode: Option<Token>,
     pub operands: [Option<Token>; 3],
@@ -65,7 +65,7 @@ impl AssemblerInstruction {
         }
     }
 
-    pub fn to_bytes(&self, symbols: &SymbolTable) -> Vec<u8> {
+    pub fn to_bytes(&self, symbols: &SymbolTable) -> Result<Vec<u8>, AssemblerError> {
         let mut results = vec![];
         if let Some(ref token) = self.opcode {
             match token {
@@ -76,7 +76,7 @@ impl AssemblerInstruction {
                     }
                 },
                 _ => {
-                    println!("Non-opcode found in opcode field");
+                    return Err(AssemblerError::NonOpcodeInOpcodeField);
                 }
             }
         }
@@ -89,7 +89,7 @@ impl AssemblerInstruction {
         while results.len() < 4 {
             results.push(0);
         }
-        results
+        Ok(results)
     }
 
     pub fn extract_operand(t: &Token, results: &mut Vec<u8>, symbols: &SymbolTable) {
@@ -122,6 +122,11 @@ impl AssemblerInstruction {
                 panic!("Opcode found in operand field");
             }
         };
-        
     }
+}
+
+
+#[derive(Debug, PartialEq)]
+pub struct Program {
+    pub instructions: Vec<AssemblerInstruction>,
 }
