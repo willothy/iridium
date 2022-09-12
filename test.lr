@@ -1,8 +1,5 @@
 .data
 
-teee:
-    .asciiz "0"
-
 .code
     load $0 #5
     load $1 #12

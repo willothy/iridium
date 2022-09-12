@@ -131,8 +131,23 @@ impl REPL {
             }
         };
         match cmd.trim() {
+            "help" => {
+                print("Available commands:\n");
+                print("- quit\n");
+                print("- clear\n");
+                print("- run\n");
+                print("- step\n");
+                print("- [ENTER]\n");
+                print("- reset\n");
+                print("- open <file>\n");
+                print("- state\n");
+                print("- bytecode\n");
+                print("- reg\n");
+                print("- program\n");
+                return Ok(())
+            }
             "quit" => {
-                print("Bye!");
+                print("Bye!\n");
                 return Err(ShouldExit);
             }
             "clear" => {
@@ -209,7 +224,11 @@ impl REPL {
                 let mut buffer = String::new();
                 bytecode_str.push_str("Bytecode:\n");
                 for instruction in self.vm.read_program() {
-                    buffer.push_str(&format!("{:04x} ", instruction));
+                    if instruction > &0xFF {
+                        buffer.push_str(&format!("{:04X} ", instruction));
+                    } else {
+                        buffer.push_str(&format!("{:02X} ", instruction));
+                    }
                     if buffer.len() >= 16 {
                         bytecode_str.push_str(&format!("{}\n", buffer));
                         buffer.clear();
